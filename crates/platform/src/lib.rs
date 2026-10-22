@@ -1,4 +1,7 @@
-//! OS adapters. Discovery never writes hardware, invokes an EC command, or requests elevation.
+//! Device discovery, capability resolution and native battery adapters.
+//!
+//! Read-only discovery is separate from controller construction. Linux sysfs,
+//! macOS IOKit/SMC and Windows WMI adapters implement the shared core traits.
 use batterybridge_core::*;
 use std::collections::BTreeMap;
 
@@ -126,7 +129,7 @@ pub fn resolve(facts: Facts) -> ProbeReport {
                 "Apple Silicon SMC",
                 gate,
                 if gate {
-                    "known SMC gate with valid payload size/type found; hardware validation pending"
+                    "SMC charging gate detected; write compatibility is unverified for this device"
                 } else {
                     "Intel Mac or no accessible known SMC gate"
                 },
@@ -139,7 +142,7 @@ pub fn resolve(facts: Facts) -> ProbeReport {
                 && facts.batteries.len() == 1;
             if available {
                 caps.charge_limit = Capability::experimental(
-                    "Lenovo WMI conservation mode, fixed 80%; experimental, hardware validation pending",
+                    "Lenovo WMI conservation mode, fixed 80%; device write compatibility is unverified",
                 );
                 caps.stop_threshold = caps.charge_limit.clone();
                 caps.allowed_limits = Some(vec![80]);

@@ -21,13 +21,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![request])
         .setup(|app| {
             let open = MenuItem::with_id(app, "open", "Open BatteryBridge", true, None::<&str>)?;
-            let quit = MenuItem::with_id(
-                app,
-                "quit",
-                "Quit UI (policy stays active)",
-                true,
-                None::<&str>,
-            )?;
+            let quit = MenuItem::with_id(app, "quit", "Quit BatteryBridge", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &quit])?;
             let icon = app
                 .default_window_icon()

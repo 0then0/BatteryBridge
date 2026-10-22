@@ -1,38 +1,54 @@
 # Developing a backend
 
+[Documentation index](README.md)
+
+A backend adds device-specific discovery and charging operations while keeping the shared policy independent of vendor details. Read the [architecture guide](architecture.md) before choosing an integration point.
+
 ## Discovery
 
-`Platform::discover` reads device metadata and allowlisted interfaces into `Facts`. The pure `resolve` function applies OS, architecture, vendor and interface checks and produces a `ProbeReport`. Fixtures use that same resolver. A candidate reports why it was selected or rejected; a failed probe remains a visible diagnostic, not a fabricated success. Linux does not depend on vendor names. Windows Lenovo requires capability records and method availability in addition to the manufacturer.
+`Platform::discover` collects device metadata and known interfaces into `Facts`. The pure `resolve` function applies OS, architecture, vendor and interface checks to produce a `ProbeReport`. Each candidate explains why it was selected or rejected. Tests use the same resolver with synthetic facts.
 
-The preview has one controller candidate per OS. When adding competing vendor adapters, expand the candidate list and give exact interface matches precedence over broad vendor matches; do not replace errors with unconditional fallback writes. Read-only monitoring remains independent of controller activation.
+There is currently one controller candidate per operating system. When adding competing adapters, list all relevant candidates and give exact interface matches precedence over broad vendor matches. Linux's generic threshold backend is vendor-independent. Windows Lenovo selection also requires compatible methods and capability records.
 
-## Traits and platform boundaries
+Monitoring remains independent of controller activation. A missing or inaccessible controller should still allow battery status and a compatibility report wherever monitoring is available.
 
-- `BatteryMonitor`: returns battery status without granting writes.
-- `ChargeController`: capabilities, validated start/stop application, optional gate control and optional force discharge. `release` restores normal charging.
-- `DeviceInfoProvider`: safe OS/vendor/model metadata.
-- `PowerMonitor`: minimal AC connectivity, available for future event-driven logic.
+## Traits and code layout
 
-Models/DTOs live in `batterybridge-protocol`; policy and traits live in `batterybridge-core`, which forbids unsafe code. Native code belongs in a separate module under `batterybridge-platform` (or a separate backend crate when justified). Do not add model-specific SMC keys, WMI method names or device paths to core. Generic policy must not learn vendor/model conditionals.
+- `BatteryMonitor` reads battery status.
+- `ChargeController` exposes capabilities, applies thresholds and provides optional gate/discharge operations. `release` requests normal charging.
+- `DeviceInfoProvider` supplies OS, vendor and model metadata.
+- `PowerMonitor` exposes AC connectivity.
 
-## Capabilities
+DTOs belong in `batterybridge-protocol`. Policy and shared traits belong in `batterybridge-core`, which forbids unsafe code. Platform adapters live in `batterybridge-platform`; a separate backend crate is appropriate when its dependencies or size justify it.
 
-Use `Supported` only for a recognized and validated interface contract. Use `Experimental` for an implemented private hardware interface without recorded device-level write validation; this permits explicit control attempts without claiming verified support. This records interface availability, not a hardware certification. Use `Unknown` when probing cannot establish a contract, and `Unsupported` when absent. Explain the reason per feature. Report fixed thresholds through `allowed_limits`; never round silently. Native thresholds and daemon-enforced SMC thresholds must be described accurately.
+Keep model names, native paths, SMC keys and WMI identifiers inside their adapters. Core policy should operate on capabilities and battery status rather than vendor conditionals.
 
-A missing charge controller must not disable battery monitoring. Probe must never write even to test access permissions. Check permissions at write time and return a typed error.
+## Declare capabilities
 
-## Probe and fixtures
+Use `Supported` for a recognized, validated interface contract. Use `Experimental` for an implemented private interface without recorded device-level write validation. Use `Unsupported` when a required feature is absent and `Unknown` when discovery cannot establish availability.
 
-Query only named fields. Battery identifiers are ordinals (`BAT0`), not serials or WMI paths. Keep raw instance paths only inside the Windows adapter. Do not serialize arbitrary firmware/provider objects or include raw command output in diagnostics.
+Provide a reason for every feature. Fixed charge modes belong in `allowed_limits`; requests outside that list must be rejected rather than rounded silently. Document whether a percentage is enforced by a native threshold or a service-controlled gate.
 
-Add JSON under `tests/fixtures` and include it in `crates/platform/tests/fixtures.rs`. Record expected backend selection, all six capability states and battery status. Fixtures must be labelled synthetic unless collected and sanitized from real hardware. Add rejection fixtures when vendor strings match but interfaces do not. Test the actual interface adapter against temporary files or a mock transport as well as the resolver.
+Probe reads only. It must not test permissions by writing hardware. Check write access when applying a request and return a typed error if access is denied.
 
-## Writes and failure recovery
+## Diagnostics and fixtures
 
-The privileged daemon is the only production caller of controller mutations. Expose fixed operations over the protocol, never arbitrary keys, register addresses, filesystem paths, shell commands or WMI methods. Validate both the client request and backend input. Read back writes where the provider offers a reliable getter. If readback is unreliable, document that explicitly and do not invent observed state.
+Collect named fields and known interfaces. Use local battery ordinals such as `BAT0` in reports. Keep serials, raw WMI paths and provider objects out of public DTOs and test fixtures.
 
-Keep start <= stop at each intermediate threshold write. Check each return code, handle partial failure and release force discharge on errors, missing sensors, target completion, shutdown and suspend. Add supervised hardware validation before promoting a platform/model to verified support. The Linux sysfs writer is isolated in `linux.rs`; macOS unsafe calls are in its IOKit/SMC/power modules; Windows unsafe calls are in its Win32 power module. Every unsafe operation needs a local safety justification and matching ABI evidence.
+Add JSON under `tests/fixtures` and register it in `crates/platform/tests/fixtures.rs`. Include expected backend selection, all six capability states and battery status. Mark synthetic input explicitly. Cover rejected devices as well as matching ones, including a matching vendor with missing interfaces.
 
-## Extending the IPC contract
+Test the actual adapter with temporary files or a mock transport in addition to testing the resolver. Fixtures establish deterministic software behavior; [device validation](hardware.md#device-validation) establishes charging behavior on a physical laptop.
 
-Version protocol and configuration independently. Serde request DTOs reject unknown fields. Never use a new boolean or a model-specific branch in core to pretend that a different vendor operation is equivalent. Extend the controller module and its capability metadata first. Keep GUI a consumer of the same daemon commands as CLI.
+## Writes and recovery
+
+The service owns controller mutations. Expose fixed operations through the protocol and validate both request ranges and backend-specific values. Use reliable readback where available; document unavailable or ambiguous readback.
+
+Keep start strictly below stop during each intermediate write. Check return codes and recover from partial updates. Release force discharge on target completion, sensor failure, errors, shutdown and suspend. Test these transitions with a fake controller or transport before supervised device testing.
+
+Native writes are isolated in the platform modules: Linux sysfs operations in `linux.rs`, macOS FFI in the IOKit/SMC/power modules, and Windows Win32 power calls in `windows/power.rs`. Each unsafe call needs a local safety explanation covering ABI layout, ownership, pointer validity and resource lifetime.
+
+## Protocol changes
+
+Version the wire protocol independently of configuration and report formats. Requests reject unknown fields. Update Rust DTOs, GUI types, callers, tests and relevant documentation together. The CLI and GUI should remain clients of the same service contract.
+
+Before promoting an experimental interface to verified device support, record the model, firmware/driver versions, observed charging transitions and restore procedure in a sanitized validation report.

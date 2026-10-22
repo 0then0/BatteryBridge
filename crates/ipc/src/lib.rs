@@ -1,3 +1,7 @@
+//! Bounded JSON communication over Unix sockets and Windows named pipes.
+//!
+//! Connections use nonblocking transfers with frame deadlines and platform access controls.
+
 #![forbid(unsafe_code)]
 use batterybridge_protocol::*;
 #[cfg(not(windows))]

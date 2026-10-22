@@ -1,4 +1,4 @@
-//! Lenovo's Other Method WMI interface. No raw EC access or invented ThinkPad API.
+//! Windows battery monitoring and Lenovo Other Method WMI conservation control.
 use crate::*;
 mod power;
 use serde::{Deserialize, Serialize};
@@ -217,7 +217,7 @@ pub fn discover() -> Result<Platform> {
         interfaces.remove("WMI:capdata:0x03010001");
         interfaces.insert(
             "WMI:Lenovo battery scope".into(),
-            "control requires exactly one present battery in this preview".into(),
+            "Lenovo conservation control requires exactly one present battery".into(),
         );
     }
     let report = resolve(Facts {
@@ -287,8 +287,8 @@ impl ChargeController for Controller {
                 result.code
             )));
         }
-        // Getter can describe inhibition rather than configured mode. Do not
-        // fabricate readback confirmation or advertise a numeric hardware limit.
+        // The getter can describe inhibition rather than configured mode, so it
+        // cannot provide reliable readback of the requested numerical limit.
         Ok(())
     }
 }

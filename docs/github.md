@@ -1,11 +1,43 @@
-# GitHub repository metadata
+# Repository and releases
 
-Description:
+[Documentation index](README.md)
 
-> Capability-driven laptop charge control in Rust: inspect real hardware support, enforce battery policies, and share privacy-conscious compatibility reports across operating systems.
+## Find project resources
 
-Topics:
+- [Issues](https://github.com/0then0/BatteryBridge/issues): bugs, device compatibility and feature requests.
+- [Pull requests](https://github.com/0then0/BatteryBridge/pulls): proposed changes and code review.
+- [CI](https://github.com/0then0/BatteryBridge/actions/workflows/ci.yml): build and test results for Linux, Windows and macOS.
+- [Release artifacts](https://github.com/0then0/BatteryBridge/actions/workflows/release.yml): packaged platform builds.
+- [Releases](https://github.com/0then0/BatteryBridge/releases): published releases, when available.
 
-`rust`, `battery`, `battery-management`, `charge-limit`, `cross-platform`, `linux`, `macos`, `windows`, `apple-silicon`, `lenovo`, `sysfs`, `smc`, `wmi`, `cli`, `daemon`, `tauri`
+For a compatibility issue, include the affected feature, device model, relevant firmware/driver versions and a reviewed `batterybridge probe --json` report. See [Contributing](../CONTRIBUTING.md) for reporting and pull request guidance.
 
-The description emphasizes the compatibility-reporting and capability contract rather than promising support for every laptop. Hardware support remains qualified in the README and diagnostic report.
+## Continuous integration
+
+The CI workflow runs on pushes and pull requests. It installs desktop build prerequisites, checks the frontend with Biome and TypeScript, then runs Rust formatting, Clippy, tests and builds with all features enabled. Windows also runs the installer ACL regression script.
+
+A successful run confirms software checks on the runner operating systems. Device-level charging behavior is validated separately using the [hardware procedure](hardware.md#device-validation).
+
+## Build artifacts
+
+The release workflow runs for `v*` tags or through manual workflow dispatch. It produces archives for Linux x86_64, Windows x86_64 and macOS Apple Silicon, containing:
+
+- CLI and service executables.
+- Native desktop bundles under `gui`.
+- Service integration files under `packaging`.
+- Documentation, license and icon assets.
+- `SHA256SUMS.txt` with hashes for the staged files.
+
+Download an artifact from the completed workflow run and extract its archive. GitHub may require sign-in to download workflow artifacts. Desktop bundles are unsigned unless signing is configured separately. Service installation remains a separate administrator action.
+
+## Prepare a release
+
+Maintainers should verify the selected commit's CI results, update versions and release notes, and review the compatibility information before creating a version tag. The release workflow uploads build artifacts; publication to GitHub Releases is a separate step.
+
+Version numbers are declared in the root `Cargo.toml`, `apps/gui/package.json` and `apps/gui/src-tauri/tauri.conf.json`. Keep the corresponding lockfile metadata consistent when preparing a release.
+
+Keep CLI, GUI and service versions together when distributing a build. Protocol-incompatible components reject requests explicitly.
+
+## Dependency updates
+
+Dependabot checks Cargo, npm and GitHub Actions dependencies monthly. Patch and minor updates are grouped, major updates are excluded from automatic proposals, and automatic merging is disabled. Review dependency changes through the same checks as other pull requests.

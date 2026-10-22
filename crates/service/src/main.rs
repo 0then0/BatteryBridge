@@ -17,10 +17,13 @@ use std::{
 #[derive(Parser)]
 #[command(version, about = "BatteryBridge privileged charge-policy service")]
 struct Args {
+    /// Override the platform's default configuration path.
     #[arg(long)]
     config: Option<PathBuf>,
+    /// Override the platform's local IPC endpoint.
     #[arg(long)]
     socket: Option<String>,
+    /// Increase log verbosity (-v or -vv).
     #[arg(short,action=clap::ArgAction::Count)]
     verbose: u8,
 }

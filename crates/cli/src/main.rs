@@ -7,30 +7,41 @@ use clap::{Parser, Subcommand};
 #[command(
     name = "batterybridge",
     version,
-    about = "One charge policy. Device-specific capabilities."
+    about = "Inspect battery status and manage device-supported charging limits"
 )]
 struct Args {
     #[command(subcommand)]
     command: CliCommand,
+    /// Print the result as JSON.
     #[arg(long, global = true)]
     json: bool,
+    /// Increase log verbosity (-v or -vv).
     #[arg(short,global=true,action=clap::ArgAction::Count)]
     verbose: u8,
 }
 #[derive(Subcommand)]
 enum CliCommand {
+    /// Show battery status and the service's charging policy.
     Status,
+    /// List charging features available on this device.
     Capabilities,
+    /// Generate a read-only device compatibility report.
     Probe,
+    /// Display the service's saved TOML configuration.
     Config,
-    /// Set a limit (1..100) or 'off'. Requires the service.
+    /// Set a charge limit or restore normal charging. Requires the service.
     Limit {
+        /// Stop percentage (1..100), or 'off'.
         value: String,
+        /// Resume percentage, lower than the stop percentage.
         #[arg(long)]
         start: Option<u8>,
     },
+    /// Temporarily charge to 100%, then restore the saved limit.
     TopUp,
+    /// Discharge to a target when the device supports force discharge.
     Discharge {
+        /// Target percentage (20..100).
         target: u8,
     },
 }

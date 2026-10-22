@@ -4,6 +4,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+repository.workspace = true
+readme.workspace = true
+description = "BatteryBridge desktop tray application built with Tauri."
 
 [dependencies]
 batterybridge-protocol.workspace = true
@@ -17,7 +20,7 @@ custom-protocol = ["tauri?/custom-protocol"]
 desktop = ["dep:tauri", "dep:tauri-build"]
 
 [build-dependencies]
-tauri-build = { version = "2", optional = true , features = [] }
+tauri-build = { version = "2", optional = true, features = [] }
 
 [[bin]]
 name = "batterybridge-gui"

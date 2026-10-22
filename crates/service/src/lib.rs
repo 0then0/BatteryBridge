@@ -1,3 +1,5 @@
+//! Service-side command handling, charging-policy reconciliation and lifecycle management.
+
 #![forbid(unsafe_code)]
 use batterybridge_core::{policy::Policy, *};
 use batterybridge_platform::Platform;

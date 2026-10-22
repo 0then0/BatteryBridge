@@ -1,12 +1,19 @@
+//! Typed commands, responses, capabilities and configuration data shared by BatteryBridge clients and service.
+//!
+//! Requests carry a protocol version and validate charging ranges before execution.
+
 #![forbid(unsafe_code)]
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+/// Request version accepted by matching BatteryBridge clients and service.
 pub const PROTOCOL_VERSION: u32 = 2;
+/// Maximum JSON payload size in bytes, excluding the four-byte frame header.
 pub const MAX_FRAME: usize = 64 * 1024;
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Typed failures from validation, discovery, IPC and hardware operations.
 #[derive(Debug, Clone, Serialize, Deserialize, thiserror::Error, PartialEq, Eq)]
 #[serde(tag = "kind", content = "detail", rename_all = "snake_case")]
 pub enum Error {
@@ -38,6 +45,7 @@ impl Error {
     }
 }
 
+/// Interface availability and validation status for a charging operation.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum CapabilityState {
@@ -46,6 +54,7 @@ pub enum CapabilityState {
     Unsupported,
     Unknown,
 }
+/// Availability of one operation with a user-visible explanation.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Capability {
     pub state: CapabilityState,
@@ -83,6 +92,7 @@ impl Capability {
         )
     }
 }
+/// Charging operations available through the selected backend.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Capabilities {
     pub charge_limit: Capability,
@@ -118,6 +128,7 @@ impl Capabilities {
         ]
     }
 }
+/// Read-only battery values; percentages use the range 0 through 100.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BatteryStatus {
     /// A local ordinal such as BAT0, never a serial number or WMI instance path.
@@ -143,6 +154,7 @@ pub struct Candidate {
     pub selected: bool,
     pub reason: String,
 }
+/// Versioned compatibility report containing allowlisted discovery results.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ProbeReport {
     pub schema_version: u32,
@@ -158,6 +170,7 @@ pub struct StartThreshold {
     pub enabled: bool,
     pub value: u8,
 }
+/// Persistent desired charging settings, separate from temporary service state.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
@@ -177,19 +190,21 @@ impl Default for Config {
         }
     }
 }
+/// Device information and service policy, or read-only local status when offline.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Snapshot {
     pub batteries: Vec<BatteryStatus>,
     pub device: DeviceInfo,
     pub backend: String,
     pub capabilities: Capabilities,
-    /// None when all daemon policy state is unavailable, including the ephemeral
-    /// fields below. Clients must not interpret their placeholder values as state.
+    /// `None` means all service policy state is unavailable, including the
+    /// temporary-mode fields below. Ignore those fields when configuration is absent.
     pub config: Option<Config>,
     pub top_up_active: bool,
     pub discharge_target: Option<u8>,
     pub last_error: Option<Error>,
 }
+/// Fixed operations accepted by the service; charging values are validated before use.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
@@ -231,6 +246,7 @@ pub fn percent(value: u8) -> Result<()> {
     }
     Ok(())
 }
+/// A versioned command sent by a client to the service.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Request {
@@ -251,6 +267,7 @@ impl Request {
         self.command.validate()
     }
 }
+/// A typed service result or validation/execution error.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum Response {

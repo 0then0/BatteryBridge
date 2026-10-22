@@ -1,32 +1,55 @@
 # Contributing to BatteryBridge
 
-Keep the change focused on reliable charge control. Preserve unsupported states and explain any change to a device contract. Do not claim hardware support from CI or synthetic fixtures.
+Contributions are welcome for device support, charging-policy correctness, diagnostics, accessibility and documentation. Start with the [architecture guide](docs/architecture.md) to find the relevant component.
+
+## Report a problem
+
+Search existing [issues](https://github.com/0then0/BatteryBridge/issues) before opening a new one. Include the BatteryBridge version, OS version, expected behavior, actual behavior and reproduction steps. For compatibility problems, attach a reviewed `batterybridge probe --json` report and describe the affected charging feature.
+
+Remove personal identifiers from logs and reports. Include device model and relevant firmware or driver versions, but omit serials, UUIDs and raw WMI instance paths. CI results and synthetic fixtures should be identified separately from tests on a physical laptop.
+
+## Development setup
+
+Follow [building from source](docs/build.md). Use the committed Cargo and npm lockfiles. Rust 1.90 or newer is required; CI uses stable Rust and Node.js 24. The desktop app also requires Tauri's platform dependencies.
 
 ## Local checks
 
-Use the committed Cargo and npm lockfiles. Stable Rust must meet the dependency MSRV (currently 1.90); Node.js 24 is used in CI.
+From the repository root, prepare and check the frontend first:
 
 ```sh
-cargo fmt --all
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace
-cargo build --workspace --all-features
+cd apps/gui
+npm ci
+npm run check
+npm run build
+cd ../..
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+cargo test --workspace --all-features --locked
+cargo build --workspace --all-features --locked
 ```
 
-For desktop checks, first install the OS prerequisites from Tauri's documentation, then run `npm ci`, `npm run check` and `npm run build` inside `apps/gui`. `npm run check` runs Biome and SVG accessibility checks. `npm run check:fix` formats and applies safe Biome fixes. For a standalone debug GUI, use `npm run build:native`; a Cargo build with only `desktop` requires the Vite dev server. CLI-only development can use `cargo clippy --workspace --all-targets` without the `desktop` feature. Do not install/synchronize unrelated project environments.
+`npm run check` runs Biome and SVG accessibility checks. Use `npm run check:fix` in `apps/gui` to apply safe fixes, and `cargo fmt --all` from the root to format Rust. Inspect formatting changes before committing. Git attributes keep text files in LF format on all platforms.
 
-## New backend
+For CLI/service work without desktop prerequisites, check the default workspace members:
 
-Follow [docs/contributing-backends.md](docs/contributing-backends.md). Supply a read-only probe, typed errors, limited writes with validation and a synthetic fixture. Add hardware evidence separately: model family, firmware/driver versions, observed behavior, restore procedure. Never include serials, UUIDs or raw WMI instance paths in issues or fixtures.
+```sh
+cargo clippy --all-targets --locked -- -D warnings
+cargo test --locked
+cargo build --locked
+```
+
+Tests use synthetic facts, fake controllers and temporary files. Normal CI does not write battery controls or install services. Windows CI additionally checks installer ACL behavior using disposable directories.
+
+## Add a backend
+
+Read [developing a backend](docs/contributing-backends.md). Include discovery reasons, per-feature capabilities, typed errors and tests for both matching and rejected devices. Hardware validation belongs in a separate report with the tested model, firmware and restore procedure.
 
 ## Hardware testing
 
-See [docs/hardware.md](docs/hardware.md). The opt-in automated test only reads hardware; real writes require supervised manual validation on a consenting tester's laptop. Do not run hardware tests on CI runners, shared devices or production systems.
+The [hardware guide](docs/hardware.md#device-validation) describes supervised validation. The automated hardware test only reads device information and is ignored by default. Run writes only on a device whose owner has agreed to the test, and supervise force discharge throughout.
 
-```sh
-BB_HARDWARE_TEST=1 cargo test -p batterybridge-platform --test hardware -- --ignored
-```
+## Submit a pull request
 
-PowerShell: `$env:BB_HARDWARE_TEST='1'` before running the Cargo command.
+Explain the problem, resulting behavior and checks you ran. Keep unrelated changes separate and add regression coverage for changed behavior. Update user documentation when commands, capabilities or installation requirements change.
 
-Commit messages use Conventional Commits in English: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`.
+Use Conventional Commits in English: `feat`, `fix`, `refactor`, `chore`, `docs` or `test`. The same format is suitable for pull request titles.

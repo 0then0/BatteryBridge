@@ -1,10 +1,14 @@
 # Service installation and recovery
 
-Installation is deliberately manual and elevated. The GUI is always an ordinary application. Build first; no build/test command installs a service or writes battery controls. Install the CLI and daemon into directories ordinary users cannot replace.
+[Documentation index](README.md)
 
-## Linux / systemd
+The background service maintains one machine-wide charging policy and performs privileged hardware operations. CLI and GUI remain ordinary applications. Install the service only when you need charging control; status and compatibility reports also work without it.
 
-Run these commands deliberately as an administrator, from the repository root after `cargo build --release --locked`. Replace the username when granting access.
+The Linux and macOS commands below assume a source checkout with `cargo build --release --locked` completed. From an extracted platform archive, use `./batterybridge` and `./batterybridge-service` in place of the `target/release/` executable paths; the `packaging/` paths stay the same. Installation requires administrator privileges. For Windows, use an extracted platform archive or the source-build staging steps below. Keep installed executables and their parent directories protected from ordinary-user replacement.
+
+## Linux: systemd
+
+Run from the repository root. Replace `YOUR_USER` with the account that will control charging. Skip `groupadd` if the group already exists.
 
 ```sh
 sudo groupadd --system batterybridge
@@ -15,13 +19,35 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now batterybridge
 ```
 
-If the group already exists, skip group creation. Sign out and in for new group membership. The unit creates `/run/batterybridge` (root:batterybridge 0750) and `/var/lib/batterybridge` (0700). Socket: `/run/batterybridge/control.sock`; config: `/var/lib/batterybridge/config.toml`. The sysfs controls resolve into `/sys/devices`, so the preview unit grants access to that subtree. It does not grant a GUI filesystem write access. Inspect `journalctl -u batterybridge` when policy fails.
+Sign out and back in after changing group membership. Then verify access as your ordinary user:
 
-On resume, native thresholds are rechecked within 30 seconds. There is no Linux force-discharge path in the generic threshold adapter. Before removing the unit, run `batterybridge limit off` and check normal charging, then `sudo systemctl disable --now batterybridge`.
+```sh
+batterybridge status
+batterybridge capabilities
+```
 
-## macOS / launchd
+The unit creates `/run/batterybridge` with owner/group `root:batterybridge` and mode `0750`, and `/var/lib/batterybridge` with mode `0700`. The socket is `/run/batterybridge/control.sock`; configuration is `/var/lib/batterybridge/config.toml`.
 
-Apple Silicon charge control uses root-only private SMC operations. The `admin` group can send validated commands over the socket. Installation is not part of the GUI bundle.
+Kernel controls in `/sys/class/power_supply` resolve into `/sys/devices`, so the unit grants the service write access to that subtree. The service rechecks native thresholds at its 30-second interval after resume.
+
+### Remove the service
+
+First restore normal charging and verify it on the device:
+
+```sh
+batterybridge limit off
+sudo systemctl disable --now batterybridge
+sudo rm /etc/systemd/system/batterybridge.service
+sudo systemctl daemon-reload
+```
+
+Configuration and executables remain available for reuse or separate removal.
+
+## macOS: launchd
+
+Apple Silicon control uses privileged private SMC operations. Members of the local `admin` group can send charging commands over IPC. The app bundle does not install the service.
+
+Run from the repository root:
 
 ```sh
 sudo install -d -o root -g wheel -m 0755 /usr/local/bin
@@ -34,24 +60,88 @@ sudo install -m 0644 packaging/launchd/io.github.batterybridge.plist /Library/La
 sudo launchctl bootstrap system /Library/LaunchDaemons/io.github.batterybridge.plist
 ```
 
-The shipped administrator-owned launcher recreates `/var/run/batterybridge` after reboot, then uses `exec` to start the daemon. Its path is fixed in the plist. The launcher and daemon must remain owned by root and unwritable by ordinary users.
+Run `batterybridge status` as your ordinary user to verify the connection. The launcher recreates the runtime directory after reboot before starting the service.
 
-Socket: `/var/run/batterybridge/control.sock`; config: `/Library/Application Support/BatteryBridge/config.toml`. On sleep, the daemon restores adapter power and inhibits charging when a limit is active, then acknowledges IOKit. On wake it reapplies policy. Sleep/shutdown firmware resets may still override SMC keys. The daemon refuses to start when its IOKit power notification registration fails.
+Socket: `/var/run/batterybridge/control.sock`. Configuration: `/Library/Application Support/BatteryBridge/config.toml`. Logs: `/var/log/batterybridge.log`; administrators should include this file in their log rotation policy.
 
-The plist uses launchd restart with throttling. A force kill may leave a gate latched until restart. `/var/log/batterybridge.log` receives stderr; normal logs are quiet, but administrators should include it in their local log rotation policy. Before uninstalling, run `batterybridge limit off`, verify normal charging, then `sudo launchctl bootout system /Library/LaunchDaemons/io.github.batterybridge.plist`.
+The service registers IOKit sleep/wake notifications, releases adapter isolation before sleep and reconciles policy on wake. launchd restarts it after exit with throttling. Firmware can still reset private SMC gates; see [macOS compatibility](hardware.md#macos-apple-silicon-smc).
 
-## Windows / Task Scheduler
+### Remove the service
 
-Use an elevated PowerShell to execute `packaging/windows/install-task.ps1` from an extracted release archive. It places the daemon in `C:\Program Files\BatteryBridge`, rejects reparse points or trees owned by other users and replaces complete ACLs to restrict writes to Administrators/SYSTEM, creates protected state under `C:\ProgramData\BatteryBridge`, and registers an elevated SYSTEM task at startup/logon. The installer and daemon honor the system `ProgramFiles` / `ProgramData` environment locations; `C:` paths here describe their usual defaults. The task has no execution-time limit, allows battery operation, prevents concurrent instances and retries failures. This is a Task Scheduler mechanism; the daemon does not pretend to implement the SCM service entrypoint.
+Restore normal charging and verify it before unloading:
 
-Pipe: `\\.\pipe\BatteryBridge.v1`; config: `C:\ProgramData\BatteryBridge\config.toml`. Interactive local users may send validated commands; remote/network users are denied. Run `batterybridge status` as the ordinary user after installation. WMI provider/driver availability remains device-specific. The daemon reasserts experimental conservation mode within 30 seconds of resume; the known getter is not used as a false confirmation.
+```sh
+batterybridge limit off
+sudo launchctl bootout system /Library/LaunchDaemons/io.github.batterybridge.plist
+sudo rm /Library/LaunchDaemons/io.github.batterybridge.plist
+```
 
-The installer locates the daemon two levels above its own directory, matching the staged release archive. When using source builds, stage that archive layout or copy the built executable alongside the intended archive root first.
+The launcher, executables and configuration remain until removed separately. Use orderly service shutdown while adapter isolation is active.
 
-To remove the task, first run `batterybridge limit off` and confirm normal charging, then invoke `uninstall-task.ps1` elevated. Task Scheduler termination is abrupt. Configuration replacement uses a synced sibling file and standard-library rename. If an interrupted write leaves `config.toml.new`, stop the task and inspect that file before removing it; the last committed `config.toml` remains authoritative. No ephemeral mode is restored from configuration.
+## Windows: Task Scheduler
 
-## Recovery
+From an extracted Windows archive, open an elevated PowerShell and run:
 
-Invalid configuration is a startup error, not a silent reset to defaults. Fix the TOML as administrator and restart the service. An unsupported saved policy remains visible as an enforcement error; no emulated hardware state is reported.
+```powershell
+.\packaging\windows\install-task.ps1
+```
 
-On Unix, an OS file lock allows only one daemon per endpoint. Startup reclaims a stale socket only under that lock and after a connection attempt reports that no listener exists; non-socket files and live listeners are never replaced. The lock is released by the kernel on process death, enabling service-manager crash recovery. Do not remove a lock file while a daemon is running. Reboot normally clears the runtime directory. For supervised development, `batterybridge-service --config PATH --socket PATH` selects disposable resources; it still accesses real hardware, so do not start it merely to test IPC. Unit tests use fake controllers and temporary files.
+For a source build, first prepare the archive layout from the repository root in an ordinary PowerShell:
+
+```powershell
+cargo build --release --locked
+New-Item -ItemType Directory -Force target\windows-package | Out-Null
+Copy-Item target\release\batterybridge-service.exe target\windows-package\
+Copy-Item -Recurse -Force packaging target\windows-package\
+```
+
+Then open an elevated PowerShell at the repository root and run:
+
+```powershell
+.\target\windows-package\packaging\windows\install-task.ps1
+```
+
+The installer locates the service executable two directories above its script. It installs to `%ProgramFiles%\BatteryBridge`, protects code and state ACLs, and registers a SYSTEM task named `BatteryBridge`. The task starts at boot/logon, allows battery operation, prevents concurrent instances and retries failures. Existing tasks are stopped before executable replacement.
+
+Run the CLI from your build/archive location, or from a directory on your PATH, as an ordinary user to verify access. The installer installs the service executable; it does not add the CLI to PATH.
+
+Pipe: `\\.\pipe\BatteryBridge.v1`. Configuration: `%ProgramData%\BatteryBridge\config.toml`. The pipe name is stable; the request protocol version is validated separately. Interactive local users can send commands; network logons are denied.
+
+The installer rejects reparse points and directories owned by other users. The service reasserts conservation mode at its 30-second interval after resume. Vendor-driver and firmware requirements are described in [Windows compatibility](hardware.md#windows-lenovo-wmi).
+
+### Remove the service
+
+Run `batterybridge limit off` from your CLI location and verify normal charging, then execute the shipped `packaging/windows/uninstall-task.ps1` in an elevated PowerShell. The script unregisters the task; configuration and executables remain on disk. Task Scheduler termination is abrupt, so restore normal charging before stopping it.
+
+## Troubleshooting
+
+### Status works, but charging settings are unavailable
+
+Check that the service is running and the user has IPC access. Read-only fallback shows local battery information but cannot retrieve the service policy. On Linux, verify `batterybridge` group membership; on macOS, verify `admin` membership. On Windows, inspect the `BatteryBridge` scheduled task and the installed directories.
+
+Useful service checks:
+
+```sh
+# Linux
+systemctl status batterybridge
+journalctl -u batterybridge
+# macOS
+sudo launchctl print system/io.github.batterybridge
+tail -n 100 /var/log/batterybridge.log
+```
+
+In PowerShell, use `Get-ScheduledTask -TaskName BatteryBridge` and `Get-ScheduledTaskInfo -TaskName BatteryBridge`.
+
+### Configuration prevents startup
+
+Stop the service, back up the configuration and correct the TOML as administrator. Invalid or future configuration versions are rejected rather than reset. Restart after editing. A valid policy that the current device cannot enforce remains visible as an enforcement error.
+
+### An interrupted save left `config.toml.new`
+
+Stop the service and inspect both files before making changes. The committed `config.toml` remains authoritative. Preserve any settings you need from the transaction file, remove or move it as administrator, then restart. Temporary top-up and discharge state is not restored from configuration.
+
+### A Unix endpoint appears stale
+
+Startup reclaims a stale socket under an OS file lock after confirming that no listener is active. Non-socket files and live listeners are preserved. Stop the service before inspecting runtime files; removing a lock file while a service is running can defeat instance ownership. Runtime directories are normally recreated after reboot.
+
+For supervised development, `batterybridge-service --config PATH --socket ENDPOINT` overrides the default resources. This still uses real device discovery and can write hardware. Use the fake-controller tests for IPC or policy changes that do not require a device.

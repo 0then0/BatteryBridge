@@ -70,7 +70,7 @@ function App() {
         setReport(JSON.stringify(result.data, null, 2));
       else {
         edited.current = false;
-        setMessage("Charge policy applied.");
+        setMessage("Charging settings updated.");
         mutating.current = false;
         await refresh();
       }
@@ -146,10 +146,10 @@ function App() {
       </section>
       {error && (
         <div className="notice error" role="alert">
-          <strong>Service unavailable or request failed</strong>
+          <strong>Unable to complete request</strong>
           <p>{error}</p>
           <small>
-            Start the installed BatteryBridge service, then refresh.
+            Check the service status and device capabilities, then try again.
           </small>
         </div>
       )}
@@ -169,8 +169,8 @@ function App() {
       )}
       {caps?.charge_limit.state === "experimental" && (
         <p className="notice">
-          Experimental hardware interface. Writes are not hardware-verified for
-          this device; firmware may reject them.
+          Experimental charge control. Compatibility with this device’s firmware
+          has not been verified.
         </p>
       )}
       {message && (
@@ -184,7 +184,7 @@ function App() {
             <h1>Charge limit</h1>
             <span>
               {readOnly
-                ? "Policy unavailable"
+                ? "Settings unavailable"
                 : snapshot?.top_up_active
                   ? "Top-up active"
                   : snapshot?.config?.charge_limit == null
@@ -368,8 +368,8 @@ function App() {
         <section className="report">
           <h2>Compatibility report</h2>
           <p className="muted">
-            Only allowlisted fields are collected. Review the report before
-            sharing.
+            Reports exclude serial numbers and network identifiers. Review the
+            contents before sharing.
           </p>
           <textarea
             aria-label="Compatibility report JSON"
@@ -385,7 +385,7 @@ function App() {
           </a>
         </section>
       )}
-      <footer>One policy. Your hardware’s capabilities.</footer>
+      <footer>Charging features depend on your device and firmware.</footer>
     </main>
   );
 }

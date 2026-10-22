@@ -1,17 +1,45 @@
-# IPC and privilege boundaries
+# Security and IPC
 
-The daemon is also the privileged helper. Its entire public surface is the fixed `Command` enum: status, capabilities, probe, config, validated limits, top-up and bounded discharge. There is no command execution, arbitrary path/key access, firmware flashing or network listener. A separate helper process can be introduced later if it provides a concrete security boundary; the GUI never owns a controller.
+[Documentation index](README.md)
 
-Requests include protocol version 2 and are JSON with a four-byte big-endian length prefix. The maximum frame is 64 KiB. Each frame operation has a deadline; at most eight accepted requests wait for the single hardware-policy thread. Hardware writes are serialized. The listener blocks while idle; the policy thread waits on a channel with a 30-second reconciliation deadline. Client traffic cannot postpone the next policy check indefinitely. On macOS, a sleep flag prevents queued mutations while the service handles the power notification.
+## Privilege boundary
 
-Unix sockets are created inside an administrator-owned, non-writable directory and chmod'ed to 0660. An OS file lock protects instance ownership and stale-socket reclamation; an active listener or non-socket path is never displaced. Linux permits root and the `batterybridge` group. macOS uses root and the local `admin` group. Membership grants control of the first laptop battery's machine-wide policy; this is an explicit authorization decision, not a per-user policy.
+The background service owns the writable charge controller and machine-wide policy. CLI and GUI run as ordinary applications. They request a fixed set of operations: status, capabilities, compatibility reports, configuration reads, validated limits, temporary top-up and bounded discharge.
 
-Windows installation rejects reparse points and trees owned by other users before copying code. It replaces complete directory/file DACLs (including explicit ACEs), rather than only adding administrator grants. Windows uses a named pipe with a protected DACL. Network logons are denied; SYSTEM and Administrators have full access, and interactive local users have read/write access. Any interactive local user can change the machine policy. The SYSTEM task and executable/state directories must remain writable only by Administrators/SYSTEM. Windows ACLs are constructed through safe `interprocess` wrappers. No remote WMI connection is made.
+The service exposes local IPC only. Its commands accept typed charging settings rather than shell commands, filesystem paths, SMC keys or WMI method names. Both clients and service validate request values, and each backend checks its hardware-specific constraints.
 
-Configuration contains desired policy only. The service validates it before applying, writes a new file exclusively and persists changes before acknowledging success. Hardware is restored to the prior policy if persistence fails. Replacement uses the standard library's same-filesystem rename on Unix and MoveFileExW replacement on Windows. Both client and server validate ranges. Backend writes validate them again.
+## Local access
 
-SMC interfaces are private and firmware can reject writes even for root. A successful read-only probe cannot establish write permission. Do not bypass platform protections. Force discharge is an advanced explicit command with a 20% floor and no public indefinite adapter-disable action. The daemon releases isolation before sleep and on orderly shutdown; abrupt termination or firmware behavior cannot be made safe by software tests alone.
+On Unix, sockets are created in an administrator-owned directory that is not group/world writable. Socket mode is `0660`. Linux grants access to root and the `batterybridge` group; macOS grants access to root and the local `admin` group. Group membership permits changes to the machine's charging policy, shared by all users.
 
-Reports use an allowlist and contain no serials, installation IDs or network identifiers. Logs do not dump provider payloads, WMI object paths or configuration paths. Future fields must be reviewed for privacy before being added to the public DTO.
+An OS file lock protects Unix endpoint ownership. Startup can reclaim a stale socket after confirming that no listener is active. Active listeners and non-socket paths are preserved.
 
-Protocol v2 adds explicit experimental capabilities and nullable status configuration for offline reads. Upgrade CLI, GUI and daemon together; a protocol mismatch is an explicit error and never triggers a write fallback.
+Windows uses a named pipe with a protected DACL. Network logons are denied. SYSTEM and Administrators have full access, and interactive local users have read/write access. Any authorized interactive user can change the machine-wide charging policy.
+
+The Windows installer rejects reparse points and trees owned by other users before copying code. It replaces complete file/directory DACLs so that executable and state directories are writable only by Administrators/SYSTEM. The implementation uses safe `interprocess` security-descriptor wrappers. WMI queries are local.
+
+## Protocol
+
+The current request protocol is version 2. Messages are Serde JSON with a four-byte big-endian length prefix and a maximum payload of 64 KiB. Frame reads and writes each have a three-second deadline. On Windows, an empty nonblocking transfer waits for progress within that deadline. Connections are configured once before exchanging frames.
+
+At most eight accepted requests wait for the single policy thread. Hardware operations are serialized. The listener blocks while idle, and the policy thread waits for requests, power events or its 30-second reconciliation interval. Client traffic does not indefinitely postpone policy reconciliation. On macOS, queued mutations are rejected while the service handles sleep.
+
+Upgrade CLI, GUI and service together when the protocol changes. Incompatible versions return an explicit error. Read-only fallback is limited to status and capabilities when the service is unavailable or access is denied; configuration reads and mutations require the service.
+
+In an offline status response, `config` is null and all policy state, including temporary modes, is unavailable. Clients must not interpret the temporary-mode placeholder fields as current state.
+
+## Policy persistence
+
+Configuration stores desired settings, not temporary hardware state. The service applies a validated change and persists it before acknowledging success. If persistence fails, it attempts to restore the previous policy.
+
+Writes use an exclusively created, synced sibling file and same-filesystem replacement. An existing transaction file is preserved for recovery. See [configuration](configuration.md) and [service recovery](service.md#troubleshooting) for operational details.
+
+## Hardware safety
+
+Private SMC interfaces can reject writes even with root privileges. Read-only discovery does not establish write permission. Platform authorization and firmware protections remain in effect.
+
+Force discharge has a minimum target of 20%. There is no public indefinite adapter-disable command. The service releases isolation before macOS sleep and on orderly shutdown. Firmware changes and abrupt termination can still affect charging state; supervised validation is described in the [hardware guide](hardware.md#device-validation).
+
+## Diagnostic privacy
+
+Compatibility reports use an allowlist of device metadata and interface results. They exclude serials, usernames, network identifiers, installation IDs and raw WMI instance paths. Logs avoid raw provider payloads and identifiers. Review reports and logs before sharing, especially when adding information collected outside BatteryBridge.

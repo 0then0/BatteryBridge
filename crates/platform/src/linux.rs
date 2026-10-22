@@ -98,8 +98,7 @@ pub fn discover() -> Result<Platform> {
             "absent".into()
         },
     )]);
-    // The MVP deliberately controls only the first present battery. Surface every
-    // battery's attributes; never imply a machine-wide limit for other packs.
+    // Control targets the first present battery; report attributes for every pack.
     for (index, path) in battery_paths(root)?.iter().enumerate() {
         for key in [
             "charge_control_start_threshold",
