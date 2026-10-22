@@ -147,12 +147,20 @@ pub fn listen(endpoint: &str) -> Result<Listener> {
         _lock: lock,
     })
 }
-fn transfer<F: FnMut() -> std::io::Result<usize>>(until: Instant, mut f: F) -> Result<usize> {
+fn transfer<F: FnMut() -> std::io::Result<usize>>(
+    until: Instant,
+    retry_zero: bool,
+    mut f: F,
+) -> Result<usize> {
     loop {
         if Instant::now() >= until {
             return Err(Error::ProtocolError("IPC frame deadline exceeded".into()));
         }
         match f() {
+            // PIPE_NOWAIT can complete without transferring bytes. interprocess
+            // also maps ERROR_NO_DATA to EOF through ErrorKind::BrokenPipe.
+            // Neither means a complete frame has arrived; retain the deadline.
+            Ok(0) if retry_zero => std::thread::sleep(Duration::from_millis(10)),
             Ok(v) => return Ok(v),
             Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock && Instant::now() < until => {
@@ -168,7 +176,7 @@ fn read_exact(stream: &mut Stream, buffer: &mut [u8], until: Instant) -> Result<
         if Instant::now() >= until {
             return Err(Error::ProtocolError("IPC frame timeout".into()));
         }
-        let count = transfer(until, || stream.read(&mut buffer[offset..]))?;
+        let count = transfer(until, cfg!(windows), || stream.read(&mut buffer[offset..]))?;
         if count == 0 {
             return Err(Error::ProtocolError("truncated IPC frame".into()));
         }
@@ -182,7 +190,7 @@ fn write_all(stream: &mut Stream, buffer: &[u8], until: Instant) -> Result<()> {
         if Instant::now() >= until {
             return Err(Error::ProtocolError("IPC write timeout".into()));
         }
-        let count = transfer(until, || stream.write(&buffer[offset..]))?;
+        let count = transfer(until, cfg!(windows), || stream.write(&buffer[offset..]))?;
         if count == 0 {
             return Err(Error::ProtocolError("closed IPC stream".into()));
         }
@@ -237,5 +245,40 @@ pub fn call_at(endpoint: &str, command: Command) -> Result<Response> {
     match response {
         Response::Error(e) => Err(e),
         other => Ok(other),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn windows_empty_transfers_wait_for_progress_but_keep_the_deadline() {
+        let mut attempts = 0;
+        let count = transfer(Instant::now() + Duration::from_secs(1), true, || {
+            attempts += 1;
+            Ok(if attempts < 3 { 0 } else { 4 })
+        })
+        .unwrap();
+        assert_eq!(count, 4);
+        assert_eq!(attempts, 3);
+        assert!(matches!(
+            transfer(Instant::now() + Duration::from_millis(20), true, || Ok(0)),
+            Err(Error::ProtocolError(_))
+        ));
+    }
+
+    #[test]
+    fn unix_eof_is_returned_without_retrying() {
+        let mut attempts = 0;
+        assert_eq!(
+            transfer(Instant::now() + Duration::from_secs(1), false, || {
+                attempts += 1;
+                Ok(0)
+            })
+            .unwrap(),
+            0
+        );
+        assert_eq!(attempts, 1);
     }
 }

@@ -77,6 +77,44 @@ fn oversized_frame_is_rejected_before_allocating_payload() {
     server.join().unwrap();
 }
 
+#[test]
+fn delayed_fragmented_frame_is_not_mistaken_for_eof() {
+    use interprocess::local_socket::prelude::*;
+    use std::{sync::mpsc, time::Duration};
+    let endpoint = address();
+    let listener = listen(&endpoint).unwrap();
+    let (ready, accepted) = mpsc::channel();
+    let server = std::thread::spawn(move || {
+        let mut connection = listener.incoming().next().unwrap().unwrap();
+        ready.send(()).unwrap();
+        let request: Request = receive(&mut connection).unwrap();
+        request.validate().unwrap();
+        assert!(matches!(request.command, Command::Status));
+        send(&mut connection, &Response::Ok).unwrap();
+    });
+    #[cfg(unix)]
+    let name = endpoint
+        .as_str()
+        .to_fs_name::<interprocess::local_socket::GenericFilePath>()
+        .unwrap();
+    #[cfg(windows)]
+    let name = endpoint
+        .as_str()
+        .to_ns_name::<interprocess::local_socket::GenericNamespaced>()
+        .unwrap();
+    let mut stream = Stream::connect(name).unwrap();
+    accepted.recv_timeout(Duration::from_secs(1)).unwrap();
+    let body = serde_json::to_vec(&Request::new(Command::Status)).unwrap();
+    let header = (body.len() as u32).to_be_bytes();
+    // Exercise empty reads before the header, inside it, and inside the payload.
+    for fragment in [&header[..2], &header[2..], &body[..2], &body[2..]] {
+        std::thread::sleep(Duration::from_millis(40));
+        stream.write_all(fragment).unwrap();
+    }
+    assert!(matches!(receive(&mut stream).unwrap(), Response::Ok));
+    server.join().unwrap();
+}
+
 #[cfg(unix)]
 #[test]
 fn crash_recovery_preserves_exclusive_instance_ownership() {
