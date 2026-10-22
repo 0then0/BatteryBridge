@@ -1,0 +1,17 @@
+# IPC and privilege boundaries
+
+The daemon is also the privileged helper. Its entire public surface is the fixed `Command` enum: status, capabilities, probe, config, validated limits, top-up and bounded discharge. There is no command execution, arbitrary path/key access, firmware flashing or network listener. A separate helper process can be introduced later if it provides a concrete security boundary; the GUI never owns a controller.
+
+Requests include protocol version 2 and are JSON with a four-byte big-endian length prefix. The maximum frame is 64 KiB. Each frame operation has a deadline; at most eight accepted requests wait for the single hardware-policy thread. Hardware writes are serialized. The listener blocks while idle; the policy thread waits on a channel with a 30-second reconciliation deadline. Client traffic cannot postpone the next policy check indefinitely. On macOS, a sleep flag prevents queued mutations while the service handles the power notification.
+
+Unix sockets are created inside an administrator-owned, non-writable directory and chmod'ed to 0660. An OS file lock protects instance ownership and stale-socket reclamation; an active listener or non-socket path is never displaced. Linux permits root and the `batterybridge` group. macOS uses root and the local `admin` group. Membership grants control of the first laptop battery's machine-wide policy; this is an explicit authorization decision, not a per-user policy.
+
+Windows installation rejects reparse points and trees owned by other users before copying code. It replaces complete directory/file DACLs (including explicit ACEs), rather than only adding administrator grants. Windows uses a named pipe with a protected DACL. Network logons are denied; SYSTEM and Administrators have full access, and interactive local users have read/write access. Any interactive local user can change the machine policy. The SYSTEM task and executable/state directories must remain writable only by Administrators/SYSTEM. Windows ACLs are constructed through safe `interprocess` wrappers. No remote WMI connection is made.
+
+Configuration contains desired policy only. The service validates it before applying, writes a new file exclusively and persists changes before acknowledging success. Hardware is restored to the prior policy if persistence fails. Replacement uses the standard library's same-filesystem rename on Unix and MoveFileExW replacement on Windows. Both client and server validate ranges. Backend writes validate them again.
+
+SMC interfaces are private and firmware can reject writes even for root. A successful read-only probe cannot establish write permission. Do not bypass platform protections. Force discharge is an advanced explicit command with a 20% floor and no public indefinite adapter-disable action. The daemon releases isolation before sleep and on orderly shutdown; abrupt termination or firmware behavior cannot be made safe by software tests alone.
+
+Reports use an allowlist and contain no serials, installation IDs or network identifiers. Logs do not dump provider payloads, WMI object paths or configuration paths. Future fields must be reviewed for privacy before being added to the public DTO.
+
+Protocol v2 adds explicit experimental capabilities and nullable status configuration for offline reads. Upgrade CLI, GUI and daemon together; a protocol mismatch is an explicit error and never triggers a write fallback.

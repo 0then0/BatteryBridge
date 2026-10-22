@@ -1,0 +1,29 @@
+[workspace]
+members = ["crates/*", "apps/gui/src-tauri"]
+default-members = ["crates/protocol", "crates/core", "crates/platform", "crates/ipc", "crates/service", "crates/cli"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/0then0/BatteryBridge"
+rust-version = "1.90"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4", features = ["derive"] }
+batterybridge-protocol = { path = "crates/protocol" }
+batterybridge-core = { path = "crates/core" }
+batterybridge-platform = { path = "crates/platform" }
+batterybridge-ipc = { path = "crates/ipc" }
+
+[profile.release]
+lto = "thin"
+strip = true
+codegen-units = 1

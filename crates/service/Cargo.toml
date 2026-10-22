@@ -1,0 +1,16 @@
+[package]
+name = "batterybridge-service"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+batterybridge-protocol.workspace = true
+batterybridge-core.workspace = true
+batterybridge-platform.workspace = true
+batterybridge-ipc.workspace = true
+clap.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+ctrlc = { version = "3", features = ["termination"] }

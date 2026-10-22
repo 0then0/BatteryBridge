@@ -1,0 +1,68 @@
+name: Release artifacts
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            label: linux-x86_64
+          - os: windows-latest
+            label: windows-x86_64
+          - os: macos-14
+            label: macos-aarch64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Linux prerequisites
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
+      - run: npm ci
+        working-directory: apps/gui
+      - run: npm run build
+        working-directory: apps/gui
+      - run: cargo test --workspace --locked
+      - run: cargo build --workspace --all-features --release --locked
+      - name: Build unsigned desktop bundle
+        run: npm run tauri -- build --features desktop
+        working-directory: apps/gui
+      - name: Stage CLI, daemon, service definitions and license
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifact | Out-Null
+          if ($IsWindows) { $suffix = '.exe' } else { $suffix = '' }
+          Copy-Item "target/release/batterybridge$suffix" artifact/
+          Copy-Item "target/release/batterybridge-service$suffix" artifact/
+          Copy-Item README.md,LICENSE artifact/
+          Copy-Item -Recurse packaging,docs,assets artifact/
+          Copy-Item -Recurse target/release/bundle artifact/gui
+          $root = (Resolve-Path artifact).Path
+          $hashes = Get-ChildItem artifact -Recurse -File | ForEach-Object {
+            $relative = [System.IO.Path]::GetRelativePath($root, $_.FullName).Replace('\', '/')
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $relative"
+          }
+          $hashes | Set-Content artifact/SHA256SUMS.txt
+          if ($IsWindows) {
+            Compress-Archive -Path artifact/* -DestinationPath batterybridge-${{ matrix.label }}.zip
+          } else {
+            tar -czf batterybridge-${{ matrix.label }}.tar.gz -C artifact .
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to archive release artifacts' }
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: batterybridge-${{ matrix.label }}
+          path: |
+            batterybridge-*.zip
+            batterybridge-*.tar.gz
+          if-no-files-found: error

@@ -1,0 +1,191 @@
+#![forbid(unsafe_code)]
+use batterybridge_core::*;
+use batterybridge_ipc as ipc;
+use clap::{Parser, Subcommand};
+
+#[derive(Parser)]
+#[command(
+    name = "batterybridge",
+    version,
+    about = "One charge policy. Device-specific capabilities."
+)]
+struct Args {
+    #[command(subcommand)]
+    command: CliCommand,
+    #[arg(long, global = true)]
+    json: bool,
+    #[arg(short,global=true,action=clap::ArgAction::Count)]
+    verbose: u8,
+}
+#[derive(Subcommand)]
+enum CliCommand {
+    Status,
+    Capabilities,
+    Probe,
+    Config,
+    /// Set a limit (1..100) or 'off'. Requires the service.
+    Limit {
+        value: String,
+        #[arg(long)]
+        start: Option<u8>,
+    },
+    TopUp,
+    Discharge {
+        target: u8,
+    },
+}
+fn run() -> Result<()> {
+    let args = Args::parse();
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                match args.verbose {
+                    0 => "warn",
+                    1 => "info",
+                    _ => "debug",
+                }
+                .into()
+            }),
+        )
+        .with_writer(std::io::stderr)
+        .init();
+    let command = match args.command {
+        CliCommand::Status => Command::Status,
+        CliCommand::Capabilities => Command::Capabilities,
+        CliCommand::Probe => Command::Probe,
+        CliCommand::Config => Command::Config,
+        CliCommand::Limit { value, start } => Command::Limit {
+            stop: if value == "off" {
+                None
+            } else {
+                Some(
+                    value
+                        .parse()
+                        .map_err(|_| Error::InvalidLimit("expected 1..100 or off".into()))?,
+                )
+            },
+            start,
+        },
+        CliCommand::TopUp => Command::TopUp,
+        CliCommand::Discharge { target } => Command::Discharge { target },
+    };
+    command.validate()?;
+    output(
+        batterybridge_platform::client::query(command, ipc::call)?,
+        args.json,
+    )
+}
+fn output(response: Response, json: bool) -> Result<()> {
+    if json {
+        let value = match response {
+            Response::Probe(v) => serde_json::to_value(v),
+            Response::Status(v) => serde_json::to_value(v),
+            Response::Capabilities(v) => serde_json::to_value(v),
+            Response::Config(v) => serde_json::to_value(v),
+            v => serde_json::to_value(v),
+        }
+        .map_err(|e| Error::ProtocolError(e.to_string()))?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&value)
+                .map_err(|e| Error::ProtocolError(e.to_string()))?
+        );
+        return Ok(());
+    }
+    match response {
+        Response::Ok => println!("Applied."),
+        Response::Error(e) => return Err(e),
+        Response::Status(s) => {
+            println!("BatteryBridge\n");
+            if s.batteries.is_empty() {
+                println!("Battery:      not detected");
+            }
+            for b in &s.batteries {
+                println!(
+                    "Battery {}: {}\nState:        {}\nPower source: {}\nHealth:       {}",
+                    b.id,
+                    percentage(b.percent),
+                    b.state,
+                    match b.on_ac {
+                        Some(true) => "AC",
+                        Some(false) => "Battery",
+                        None => "unknown",
+                    },
+                    percentage(b.health_percent)
+                );
+            }
+            println!(
+                "\nCharge policy (first battery): {}",
+                s.config
+                    .as_ref()
+                    .map(|c| c
+                        .charge_limit
+                        .map(|v| format!("{v}%"))
+                        .unwrap_or_else(|| "off".into()))
+                    .unwrap_or_else(|| "unavailable".into())
+            );
+            println!(
+                "Top up:       {}\n\nBackend:      {}\nDevice:       {} {}",
+                s.top_up_active, s.backend, s.device.vendor, s.device.model
+            );
+            if let Some(e) = s.last_error {
+                println!("\nService: {e}");
+            }
+        }
+        Response::Capabilities(c) => {
+            for (name, cap) in c.entries() {
+                println!("{name:20} {:12} {}", state(cap.state), cap.reason);
+            }
+            if let Some(v) = c.allowed_limits {
+                println!("Allowed limits: {v:?}");
+            }
+        }
+        Response::Probe(p) => {
+            println!(
+                "BatteryBridge compatibility report v{}\nOS: {} {} ({})\nDevice: {} {}\nBatteries: {:?}",
+                p.schema_version,
+                p.device.os,
+                p.device.os_version,
+                p.device.architecture,
+                p.device.vendor,
+                p.device.model,
+                p.battery_ids
+            );
+            for (key, value) in p.interfaces {
+                println!("{key}: {value}");
+            }
+            for c in p.candidates {
+                println!(
+                    "Backend {}: {} ({})",
+                    c.name,
+                    if c.selected { "selected" } else { "inactive" },
+                    c.reason
+                );
+            }
+            output(Response::Capabilities(p.capabilities), false)?;
+        }
+        Response::Config(c) => println!(
+            "{}",
+            toml::to_string_pretty(&c).map_err(|e| Error::ConfigurationError(e.to_string()))?
+        ),
+    }
+    Ok(())
+}
+fn percentage(p: Option<u8>) -> String {
+    p.map(|v| format!("{v}%"))
+        .unwrap_or_else(|| "unknown".into())
+}
+fn state(s: CapabilityState) -> &'static str {
+    match s {
+        CapabilityState::Supported => "supported",
+        CapabilityState::Experimental => "experimental",
+        CapabilityState::Unsupported => "unsupported",
+        CapabilityState::Unknown => "unknown",
+    }
+}
+fn main() {
+    if let Err(e) = run() {
+        eprintln!("{e}");
+        std::process::exit(1);
+    }
+}

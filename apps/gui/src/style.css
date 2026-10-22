@@ -1,0 +1,410 @@
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #162e2b;
+  background: #f3f6f4;
+  font-synthesis: none;
+  line-height: 1.5;
+  font-size: 14px;
+  font-weight: 400;
+  color-scheme: light dark;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 280px;
+}
+main {
+  max-width: 480px;
+  margin: auto;
+  padding: 26px 28px;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+button,
+a,
+input,
+summary,
+select {
+  outline-offset: 4px;
+}
+button {
+  cursor: pointer;
+  border: 1px solid #c4d2cc;
+  background: transparent;
+  color: inherit;
+  border-radius: 8px;
+  padding: 10px 15px;
+  font-weight: 600;
+}
+button:hover {
+  background: #e3ece7;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+a:focus-visible {
+  outline: 3px solid #198374;
+}
+header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+header strong {
+  font-size: 17px;
+  letter-spacing: -0.4px;
+}
+.eyebrow {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 1.6px;
+  font-weight: 650;
+  color: #526e64;
+}
+.brand-mark {
+  height: 30px;
+  width: 23px;
+  border: 2px solid currentColor;
+  border-radius: 5px;
+  position: relative;
+  padding: 4px;
+}
+.brand-mark:before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 6px;
+  width: 7px;
+  height: 3px;
+  background: currentColor;
+}
+.brand-mark span {
+  display: block;
+  background: #247d64;
+  height: 12px;
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  border-radius: 1px;
+}
+.refresh {
+  margin-left: auto;
+  border: 0;
+  font-size: 25px;
+  padding: 2px 8px;
+}
+.battery-view {
+  padding: 22px 0 25px;
+}
+.charge {
+  font-size: 92px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -6px;
+  font-variant-numeric: tabular-nums;
+}
+.percent {
+  font-size: 32px;
+  margin-left: 6px;
+  letter-spacing: -1px;
+  color: #526e64;
+}
+.battery-track {
+  height: 8px;
+  background: #dce5df;
+  border-radius: 2px;
+  margin: 10px 0 16px;
+  overflow: hidden;
+}
+.battery-track span {
+  display: block;
+  background: #247d64;
+  height: 100%;
+  transition: width 0.3s;
+}
+.battery-view p {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-transform: capitalize;
+  margin: 0;
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #247d64;
+}
+.power {
+  margin-left: auto;
+  text-transform: none;
+  font-size: 12px;
+  color: #526e64;
+}
+.policy {
+  border-top: 1px solid #d4dfd8;
+  padding-top: 22px;
+}
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+.section-heading span {
+  font-size: 12px;
+  color: #526e64;
+}
+h1 {
+  font-size: 17px;
+  margin: 0;
+  font-weight: 650;
+  letter-spacing: -0.25px;
+}
+h2 {
+  font-size: 16px;
+}
+.muted {
+  font-size: 12px;
+  color: #526e64;
+  line-height: 1.6;
+}
+.limit-input {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin: 20px 0;
+}
+input[type="number"],
+select {
+  width: 78px;
+  border: 1px solid #b5c9be;
+  border-radius: 6px;
+  background: #fff;
+  color: inherit;
+  padding: 8px;
+  font-variant-numeric: tabular-nums;
+}
+input[type="checkbox"] {
+  accent-color: #247d64;
+}
+.start-setting {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+.start-setting input[type="number"] {
+  width: 65px;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+}
+.primary {
+  background: #1b5947;
+  color: white;
+  border-color: #1b5947;
+  flex: 1;
+}
+.primary:hover {
+  background: #164737;
+}
+.top-up {
+  margin: 12px 0 0;
+  width: 100%;
+  text-align: left;
+  font-weight: 500;
+  display: flex;
+  justify-content: space-between;
+}
+.backend {
+  padding: 23px 0 18px;
+  border-bottom: 1px solid #d4dfd8;
+}
+.backend strong {
+  display: block;
+  font-size: 14px;
+  margin: 5px 0;
+}
+.backend p {
+  font-size: 12px;
+  color: #526e64;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+details {
+  padding: 15px 0;
+  border-bottom: 1px solid #d4dfd8;
+}
+summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.capabilities {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 0;
+}
+.capabilities li {
+  margin: 18px 0;
+}
+.capabilities li div {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.capabilities p {
+  font-size: 11px;
+  color: #526e64;
+  margin: 4px 0;
+}
+.capabilities .supported {
+  color: #247d64;
+}
+.capabilities .unsupported,
+.capabilities .unknown {
+  color: #70694f;
+}
+.report-button {
+  font-size: 12px;
+  display: block;
+  width: 100%;
+  border: 0;
+  margin-top: 12px;
+}
+.notice {
+  padding: 14px;
+  border: 1px solid #a6c5b7;
+  border-radius: 7px;
+  font-size: 12px;
+  margin: 12px 0;
+}
+.notice p {
+  margin: 6px 0;
+}
+.error {
+  background: #fcf0e7;
+  border-color: #d6b28e;
+  color: #783c14;
+}
+footer {
+  font-size: 10px;
+  color: #526e64;
+  text-align: center;
+  margin: 20px 0 0;
+}
+textarea {
+  width: 100%;
+  background: #fff;
+  color: inherit;
+  resize: vertical;
+  font: 11px / 1.6 monospace;
+  padding: 10px;
+  border: 1px solid #b5c9be;
+  border-radius: 5px;
+}
+a {
+  color: #247d64;
+  font-size: 12px;
+}
+.report a {
+  display: block;
+  margin: 8px 0;
+}
+@media (max-width: 340px) {
+  main {
+    padding: 20px;
+  }
+  .charge {
+    font-size: 80px;
+  }
+  .power {
+    font-size: 11px;
+  }
+  .limit-input {
+    gap: 8px;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #e1eee7;
+    background: #142a28;
+  }
+  .eyebrow,
+  .muted,
+  .percent,
+  .power,
+  .section-heading span,
+  .backend p,
+  .capabilities p,
+  footer {
+    color: #aac1b6;
+  }
+  .policy,
+  .backend,
+  details {
+    border-color: #36514a;
+  }
+  .battery-track {
+    background: #304c43;
+  }
+  .battery-track span,
+  .dot {
+    background: #84ba9d;
+  }
+  .brand-mark span {
+    background: #84ba9d;
+  }
+  button {
+    border-color: #567165;
+  }
+  button:hover {
+    background: #28483b;
+  }
+  .primary {
+    background: #a1d0b7;
+    color: #142a28;
+    border-color: #a1d0b7;
+  }
+  .primary:hover {
+    background: #c0e3cf;
+  }
+  input[type="number"],
+  select,
+  textarea {
+    background: #1b3631;
+    border-color: #567165;
+  }
+  .capabilities .supported,
+  a {
+    color: #a1d0b7;
+  }
+  .capabilities .unsupported,
+  .capabilities .unknown {
+    color: #c7bea2;
+  }
+  .error {
+    background: #382a20;
+    color: #efc6a2;
+    border-color: #81634a;
+  }
+}

@@ -1,0 +1,15 @@
+[package]
+name = "batterybridge-ipc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+batterybridge-protocol.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+interprocess = "2.2"
+
+[target.'cfg(windows)'.dependencies]
+widestring = "1"

@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+/usr/bin/install -d -o root -g admin -m 0750 /var/run/batterybridge
+exec /usr/local/bin/batterybridge-service

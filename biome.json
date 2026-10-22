@@ -1,0 +1,33 @@
+{
+  "$schema": "./apps/gui/node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "apps/gui/src/**",
+      "apps/gui/public/**",
+      "apps/gui/tests/**",
+      "apps/gui/*.json",
+      "apps/gui/index.html",
+      "apps/gui/src-tauri/*.json",
+      "apps/gui/src-tauri/capabilities/*.json",
+      "assets/icon.svg",
+      "biome.json",
+      "!apps/gui/package-lock.json"
+    ]
+  },
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2 },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "a11y": {
+        "noSvgWithoutTitle": "error",
+        "useButtonType": "error",
+        "noLabelWithoutControl": "error"
+      },
+      "correctness": { "useExhaustiveDependencies": "error" },
+      "style": { "noNonNullAssertion": "error" }
+    }
+  }
+}

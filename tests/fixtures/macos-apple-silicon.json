@@ -1,0 +1,48 @@
+{
+  "synthetic": true,
+  "facts": {
+    "device": {
+      "os": "macos",
+      "os_version": "fixture",
+      "architecture": "aarch64",
+      "vendor": "Apple",
+      "model": "Synthetic Apple Silicon"
+    },
+    "batteries": [
+      {
+        "id": "BAT0",
+        "percent": 74,
+        "state": "charging",
+        "health_percent": 94,
+        "on_ac": true,
+        "hardware_start": null,
+        "hardware_stop": null
+      }
+    ],
+    "interfaces": {
+      "SMC:CHTE": "available",
+      "SMC:CH0I": "available"
+    }
+  },
+  "expected": {
+    "backend": "Apple Silicon SMC",
+    "selected": true,
+    "capabilities": {
+      "charge_limit": "experimental",
+      "start_threshold": "experimental",
+      "stop_threshold": "experimental",
+      "force_discharge": "experimental",
+      "adapter_disable": "unsupported",
+      "temporary_full_charge": "experimental"
+    },
+    "battery": {
+      "id": "BAT0",
+      "percent": 74,
+      "state": "charging",
+      "health_percent": 94,
+      "on_ac": true,
+      "hardware_start": null,
+      "hardware_stop": null
+    }
+  }
+}

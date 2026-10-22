@@ -1,0 +1,25 @@
+[package]
+name = "batterybridge-gui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+batterybridge-protocol.workspace = true
+batterybridge-ipc.workspace = true
+batterybridge-platform.workspace = true
+tauri = { version = "2", features = ["tray-icon"], optional = true }
+
+[features]
+default = []
+custom-protocol = ["tauri?/custom-protocol"]
+desktop = ["dep:tauri", "dep:tauri-build"]
+
+[build-dependencies]
+tauri-build = { version = "2", optional = true , features = [] }
+
+[[bin]]
+name = "batterybridge-gui"
+path = "src/main.rs"
+required-features = ["desktop"]

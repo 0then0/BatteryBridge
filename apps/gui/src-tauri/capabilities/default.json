@@ -1,0 +1,6 @@
+{
+  "identifier": "main",
+  "description": "Local BatteryBridge UI; no filesystem or shell access",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

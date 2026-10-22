@@ -1,0 +1,22 @@
+[package]
+name = "batterybridge-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+batterybridge-protocol.workspace = true
+batterybridge-core.workspace = true
+batterybridge-platform.workspace = true
+batterybridge-ipc.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+tracing-subscriber.workspace = true
+
+[[bin]]
+name = "batterybridge"
+path = "src/main.rs"
+
+[dependencies.toml]
+workspace = true

@@ -1,0 +1,48 @@
+{
+  "synthetic": true,
+  "facts": {
+    "device": {
+      "os": "windows",
+      "os_version": "fixture",
+      "architecture": "x86_64",
+      "vendor": "LENOVO",
+      "model": "Legion capability fixture"
+    },
+    "batteries": [
+      {
+        "id": "BAT0",
+        "percent": 74,
+        "state": "charging",
+        "health_percent": 94,
+        "on_ac": true,
+        "hardware_start": null,
+        "hardware_stop": null
+      }
+    ],
+    "interfaces": {
+      "WMI:LENOVO_OTHER_METHOD": "available",
+      "WMI:capdata:0x03010001": "available"
+    }
+  },
+  "expected": {
+    "backend": "Lenovo WMI (fixed 80%)",
+    "selected": true,
+    "capabilities": {
+      "charge_limit": "experimental",
+      "start_threshold": "unsupported",
+      "stop_threshold": "experimental",
+      "force_discharge": "unsupported",
+      "adapter_disable": "unsupported",
+      "temporary_full_charge": "unsupported"
+    },
+    "battery": {
+      "id": "BAT0",
+      "percent": 74,
+      "state": "charging",
+      "health_percent": 94,
+      "on_ac": true,
+      "hardware_start": null,
+      "hardware_stop": null
+    }
+  }
+}
