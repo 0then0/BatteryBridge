@@ -4,14 +4,41 @@ use batterybridge_protocol::*;
 use interprocess::local_socket::GenericFilePath;
 #[cfg(windows)]
 use interprocess::local_socket::GenericNamespaced;
-pub use interprocess::local_socket::Stream;
+/// A connection configured once, before exchanging any frames. Reconfiguring a
+/// Windows pipe after its peer has sent a reply and closed can fail even while
+/// that reply is still buffered.
+pub struct Stream(interprocess::local_socket::Stream);
+impl Stream {
+    fn new(inner: interprocess::local_socket::Stream) -> std::io::Result<Self> {
+        inner.set_nonblocking(true)?;
+        Ok(Self(inner))
+    }
+    pub fn connect(name: interprocess::local_socket::Name<'_>) -> std::io::Result<Self> {
+        Self::new(interprocess::local_socket::Stream::connect(name)?)
+    }
+}
+impl Read for Stream {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+        self.0.read(buffer)
+    }
+}
+impl Write for Stream {
+    fn write(&mut self, buffer: &[u8]) -> std::io::Result<usize> {
+        self.0.write(buffer)
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.0.flush()
+    }
+}
 pub struct Listener {
     inner: interprocess::local_socket::Listener,
     _lock: Option<std::fs::File>,
 }
 impl Listener {
     pub fn incoming(&self) -> impl Iterator<Item = std::io::Result<Stream>> + '_ {
-        self.inner.incoming()
+        self.inner
+            .incoming()
+            .map(|stream| stream.and_then(Stream::new))
     }
 }
 use interprocess::local_socket::{ListenerOptions, prelude::*};
@@ -199,9 +226,6 @@ fn write_all(stream: &mut Stream, buffer: &[u8], until: Instant) -> Result<()> {
     Ok(())
 }
 pub fn receive<T: serde::de::DeserializeOwned>(stream: &mut Stream) -> Result<T> {
-    stream
-        .set_nonblocking(true)
-        .map_err(|e| Error::io("configure IPC", e))?;
     let until = Instant::now() + TIMEOUT;
     let mut header = [0; 4];
     read_exact(stream, &mut header, until)?;
@@ -214,9 +238,6 @@ pub fn receive<T: serde::de::DeserializeOwned>(stream: &mut Stream) -> Result<T>
     serde_json::from_slice(&bytes).map_err(|_| Error::ProtocolError("invalid JSON frame".into()))
 }
 pub fn send<T: serde::Serialize>(stream: &mut Stream, value: &T) -> Result<()> {
-    stream
-        .set_nonblocking(true)
-        .map_err(|e| Error::io("configure IPC", e))?;
     let bytes =
         serde_json::to_vec(value).map_err(|_| Error::ProtocolError("serialize frame".into()))?;
     if bytes.len() > MAX_FRAME {
