@@ -126,7 +126,14 @@ fn output(response: Response, json: bool) -> Result<()> {
             );
             println!(
                 "Top up:       {}\n\nBackend:      {}\nDevice:       {} {}",
-                s.top_up_active, s.backend, s.device.vendor, s.device.model
+                if s.config.is_some() {
+                    s.top_up_active.to_string()
+                } else {
+                    "unavailable".into()
+                },
+                s.backend,
+                s.device.vendor,
+                s.device.model
             );
             if let Some(e) = s.last_error {
                 println!("\nService: {e}");

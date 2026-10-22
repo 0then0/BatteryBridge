@@ -183,7 +183,8 @@ pub struct Snapshot {
     pub device: DeviceInfo,
     pub backend: String,
     pub capabilities: Capabilities,
-    /// None when the daemon policy is unavailable; never synthesize a saved limit.
+    /// None when all daemon policy state is unavailable, including the ephemeral
+    /// fields below. Clients must not interpret their placeholder values as state.
     pub config: Option<Config>,
     pub top_up_active: bool,
     pub discharge_target: Option<u8>,
