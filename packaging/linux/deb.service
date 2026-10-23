@@ -1,0 +1,29 @@
+[Unit]
+Description=BatteryBridge charge policy
+After=local-fs.target
+
+[Service]
+Type=simple
+User=root
+Group=sudo
+ExecStart=/usr/bin/batterybridge-service
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=batterybridge
+RuntimeDirectoryMode=0750
+StateDirectory=batterybridge
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/sys/class/power_supply /sys/devices /var/lib/batterybridge /run/batterybridge
+ProtectKernelTunables=false
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

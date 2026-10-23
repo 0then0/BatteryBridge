@@ -70,7 +70,7 @@
   "reasonGeneric": "Não disponível no módulo genérico de limites.",
   "reasonLenovo": "Modo de conservação Lenovo WMI, com limite fixo de 80%. A gravação neste dispositivo ainda não foi verificada.",
   "installerTitle": "Instalar BatteryBridge",
-  "installerWelcome": "Instala o BatteryBridge em Aplicativos e seu serviço de carga em segundo plano. O macOS pedirá uma senha de administrador. Requer um Mac com Apple Silicon e macOS 11 ou posterior.",
+  "installerWelcome": "Instala o BatteryBridge em Aplicativos e seu serviço de carga em segundo plano. O macOS solicitará uma senha de administrador. Requer um Mac Intel ou Apple Silicon com macOS 11 ou posterior. As funções de carga dependem do hardware.",
   "installerUpdate": "A atualização fecha o BatteryBridge e reinicia o serviço. As configurações são mantidas. Na primeira instalação, o limite de carga está desativado.",
   "installerAccess": "Somente administradores locais podem alterar as configurações de carga. O serviço continua ativo após fechar o app e inicia após reiniciar o Mac.",
   "installerReady": "O BatteryBridge está pronto",
@@ -81,5 +81,6 @@
   "sleepNotice": "Neste Mac, o serviço controla a carga enquanto o computador está ativo. O firmware pode liberar a carga durante o repouso; o limite com a tampa fechada não é garantido.",
   "uninstall": "Desinstalar BatteryBridge",
   "uninstallConfirm": "Remover o aplicativo, o serviço em segundo plano e os ajustes de carga salvos? Primeiro, a carga normal será restaurada. O macOS solicitará uma senha de administrador. Se a restauração falhar, a desinstalação será interrompida.",
-  "cancel": "Cancelar"
+  "cancel": "Cancelar",
+  "reasonIntelBclm": "Intel SMC BCLM: limite de firmware de 50% a 100%. A compatibilidade de gravação é experimental."
 }

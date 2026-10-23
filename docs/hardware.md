@@ -21,13 +21,13 @@ Writes are read back, and threshold pairs are ordered to keep start below stop. 
 
 Top-up temporarily sets the end threshold to 100. When the start attribute exists, off and top-up use start 99 and stop 100. Generic force discharge and adapter disable are unsupported. Additional batteries are listed but are not controlled.
 
-## macOS: Apple Silicon SMC
+## macOS: Intel and Apple Silicon SMC
 
 Battery status is read through IOKit. Experimental charging control uses the private `CHTE` gate or the `CH0B`/`CH0C` pair, with payload size/type validation and write readback. The service enforces the requested percentage using hysteresis and a 30-second sampling interval while awake.
 
-Temporary full charge is available when a compatible gate is found. Force discharge additionally requires a compatible `CH0I` key. Firmware may remove keys or deny writes, including privileged writes. Firmware-managed `bf*` limits are not implemented. Intel Mac charge control is unsupported; monitoring can still work.
+Temporary full charge is available when a compatible gate is found. Force discharge additionally requires a compatible `CH0I` key. Firmware may remove keys or deny writes, including privileged writes. Firmware-managed `bf*` limits are not implemented. Intel Macs additionally probe `BCLM`: a readable ui8 threshold from 50 to 100 enables an experimental firmware-managed limit in that range, with write readback and temporary top-up. BCLM does not expose a configurable start threshold or forced discharge. If BCLM is absent, compatible binary gates can be detected; otherwise only monitoring is available. Intel hardware charging and sleep behavior still require device-level validation.
 
-On sleep, the service cancels temporary forced discharge without removing the saved limit. With a saved limit and no top-up, it requests charging inhibition before acknowledging IOKit. That inhibition is retained on wake until the battery reaches the resume threshold. Sleep-preparation errors remain in status until a subsequent successful sleep preparation or service restart. Firmware may reset gate state during sleep or shutdown, so percentage limits cannot be guaranteed in those states. Abrupt process termination can leave a gate latched until the service restarts. The UI labels the saved percentage as configured, not verified enforcement, and warns when live telemetry reports charging above it outside an explicit top-up. A high percentage while discharging is not evidence of continued charging.
+On binary-gate backends, the service cancels temporary forced discharge without removing the saved limit. With a saved limit and no top-up, it requests charging inhibition before acknowledging IOKit. That inhibition is retained on wake until the battery reaches the resume threshold. Sleep-preparation errors remain in status until a subsequent successful sleep preparation or service restart. Firmware may reset gate state during sleep or shutdown, so percentage limits cannot be guaranteed in those states. Abrupt process termination can leave a gate latched until the service restarts. The UI labels the saved percentage as configured, not verified enforcement, and warns when live telemetry reports charging above it outside an explicit top-up. A high percentage while discharging is not evidence of continued charging.
 
 ## Windows: Lenovo WMI
 
@@ -84,3 +84,5 @@ These references describe interface semantics and implementation constraints. Th
 - [LenovoLegionToolkit WMI Other interface](https://github.com/BartoszCichecki/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/System/Management/WMI.LenovoOtherMethod.cs): Windows namespace, class and named method parameters.
 - [Lenovo Commercial Vantage configuration](https://docs.lenovocdrt.com/guides/lcv/configuration/): vendor information exports and configuration scope.
 - [Microsoft GetSystemPowerStatus](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-getsystempowerstatus) and [Win32_Battery](https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-battery): standard Windows monitoring.
+
+Intel BCLM interface reference: [bclm implementation](https://github.com/zackelia/bclm/blob/main/Sources/bclm/main.swift). Its 50–100 range and one-byte threshold are used without copying implementation code.

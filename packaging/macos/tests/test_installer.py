@@ -78,9 +78,9 @@ class InstallerTests(unittest.TestCase):
         self.assertTrue((payload / "Applications/BatteryBridge.app/Contents/Info.plist").is_file())
         self.assertFalse((payload / "Library/Application Support/BatteryBridge/config.toml").exists())
 
-    def test_distribution_only_targets_current_system_and_arm64(self):
+    def test_distribution_targets_current_system_and_both_mac_architectures(self):
         root = ET.fromstring(builder.distribution("0.1.0.1"))
-        self.assertEqual(root.find("options").get("hostArchitectures"), "arm64")
+        self.assertEqual(root.find("options").get("hostArchitectures"), "arm64,x86_64")
         self.assertEqual(root.find("domains").get("enable_anywhere"), "false")
         self.assertEqual(root.find("domains").get("enable_currentUserHome"), "false")
 
@@ -146,25 +146,25 @@ class InstallerTests(unittest.TestCase):
         self.assertNotIn("client config", self.trace.read_text())
 
     @unittest.skipUnless(sys.platform == "darwin" and
-                         (builder.REPO / "target/release/bundle/macos/BatteryBridge.app").exists(),
+                         (builder.REPO / "target/universal-apple-darwin/release/bundle/macos/BatteryBridge.app").exists(),
                          "requires a macOS release build")
     def test_real_package_build_and_expand_without_installation(self):
         output = self.root / "BatteryBridge.pkg"
-        subprocess.run([sys.executable, str(HERE / "build-pkg.py"), "--output", str(output)],
+        subprocess.run([sys.executable, str(HERE / "build-pkg.py"), "--output", str(output), "--build-dir", str(builder.REPO / "target/universal-apple-darwin/release")],
                        check=True, capture_output=True, text=True)
         expanded = self.root / "expanded"
         subprocess.run(["pkgutil", "--expand-full", str(output), str(expanded)], check=True)
         component = expanded / "component.pkg"
         info = ET.parse(component / "PackageInfo").getroot()
         self.assertEqual(info.get("auth"), "root")
-        self.assertEqual(info.get("version"), "0.1.1.3")
+        self.assertEqual(info.get("version"), "0.2.0.4")
         self.assertEqual(info.get("relocatable"), "false")
-        self.assertEqual(info.find("bundle").get("CFBundleVersion"), "3")
+        self.assertEqual(info.find("bundle").get("CFBundleVersion"), "4")
         self.assertIsNotNone(info.find("scripts/preinstall"))
         self.assertIsNotNone(info.find("scripts/postinstall"))
         self.assertEqual(len(info.find("relocate")), 0)
         app_info = plistlib.loads((component / "Payload/Applications/BatteryBridge.app/Contents/Info.plist").read_bytes())
-        self.assertEqual(app_info["CFBundleShortVersionString"], "0.1.1")
+        self.assertEqual(app_info["CFBundleShortVersionString"], "0.2.0")
         self.assertEqual(set(app_info["CFBundleLocalizations"]), {"en", "ru", "es", "de", "fr", "ja", "pt-BR"})
         for locale in app_info["CFBundleLocalizations"]:
             self.assertTrue((expanded / "Resources" / f"{locale}.lproj" / "Welcome.html").is_file())

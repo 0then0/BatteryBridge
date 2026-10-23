@@ -49,7 +49,7 @@ fn vendor_or_key_name_alone_never_selects_controller() {
         "../../../tests/fixtures/macos-apple-silicon.json"
     ))
     .unwrap();
-    f.facts.device.architecture = "x86_64".into();
+    f.facts.device.architecture = "unsupported-architecture".into();
     assert!(!resolve(f.facts).capabilities.charge_limit.available());
 }
 #[test]
@@ -113,4 +113,84 @@ fn multi_battery_lenovo_is_rejected_by_the_resolver_itself() {
     let report = resolve(f.facts);
     assert!(!report.candidates[0].selected);
     assert!(!report.capabilities.charge_limit.available());
+}
+
+#[test]
+fn intel_smc_requires_a_complete_readable_gate() {
+    let mut f: Fixture = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/macos-apple-silicon.json"
+    ))
+    .unwrap();
+    f.facts.device.architecture = "x86_64".into();
+    f.facts.interfaces.clear();
+    f.facts
+        .interfaces
+        .insert("SMC:CH0B".into(), "available".into());
+    assert!(
+        !resolve(Facts {
+            device: f.facts.device.clone(),
+            batteries: f.facts.batteries.clone(),
+            interfaces: f.facts.interfaces.clone()
+        })
+        .capabilities
+        .charge_limit
+        .available()
+    );
+    f.facts
+        .interfaces
+        .insert("SMC:CH0C".into(), "available".into());
+    let report = resolve(Facts {
+        device: f.facts.device.clone(),
+        batteries: f.facts.batteries.clone(),
+        interfaces: f.facts.interfaces.clone(),
+    });
+    assert_eq!(report.candidates[0].name, "Intel SMC");
+    assert_eq!(
+        report.capabilities.charge_limit.state,
+        CapabilityState::Experimental
+    );
+    f.facts
+        .interfaces
+        .insert("SMC:CH0C".into(), "permission denied: fixture".into());
+    assert_eq!(
+        resolve(f.facts).capabilities.charge_limit.state,
+        CapabilityState::Unknown
+    );
+}
+
+#[test]
+fn intel_bclm_uses_firmware_thresholds_and_rejects_unsupported_inputs() {
+    let mut f: Fixture = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/macos-apple-silicon.json"
+    ))
+    .unwrap();
+    f.facts.device.architecture = "x86_64".into();
+    f.facts.interfaces.clear();
+    f.facts
+        .interfaces
+        .insert("SMC:BCLM".into(), "available".into());
+    let report = resolve(f.facts);
+    assert_eq!(report.candidates[0].name, "Intel SMC (BCLM)");
+    assert_eq!(
+        report.capabilities.charge_limit.state,
+        CapabilityState::Experimental
+    );
+    assert!(!report.capabilities.start_threshold.available());
+    assert!(!report.capabilities.force_discharge.available());
+    let mut policy = batterybridge_core::policy::Policy::default();
+    assert!(
+        policy
+            .set_limit(Some(49), None, &report.capabilities)
+            .is_err()
+    );
+    assert!(
+        policy
+            .set_limit(Some(80), Some(75), &report.capabilities)
+            .is_err()
+    );
+    policy
+        .set_limit(Some(50), None, &report.capabilities)
+        .unwrap();
+    policy.top_up(&report.capabilities).unwrap();
+    policy.set_limit(None, None, &report.capabilities).unwrap();
 }

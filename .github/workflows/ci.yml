@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-latest, macos-latest]
+        os: [ubuntu-24.04, windows-latest, macos-latest, macos-15-intel]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -32,6 +32,13 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./packaging/windows/test-permissions.ps1
+      - name: Windows task lifecycle checks
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./packaging/windows/test-lifecycle.ps1
+      - name: Linux package lifecycle checks
+        if: runner.os != 'Windows'
+        run: python3 -m unittest discover -s packaging/tests -v
       - run: cargo fmt --all --check
       - name: macOS installer regression checks
         if: runner.os == 'macOS'

@@ -74,6 +74,8 @@ export function translate(
 // These are display translations of known protocol diagnostics. Unknown OS or
 // firmware messages remain verbatim; reports always retain the original data.
 export const reasonMessages: Record<string, Message> = {
+  "Intel SMC BCLM firmware threshold, 50..100%; device write compatibility is unverified":
+    "reasonIntelBclm",
   "no compatible charge-control interface detected": "reasonNone",
   "SMC binary gate; daemon enforces hysteresis while awake; firmware may deny writes":
     "reasonSmc",

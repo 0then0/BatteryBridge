@@ -70,7 +70,7 @@
   "reasonGeneric": "Not exposed by the generic threshold backend.",
   "reasonLenovo": "Lenovo WMI conservation mode, fixed at 80%. Write compatibility has not been verified for this device.",
   "installerTitle": "Install BatteryBridge",
-  "installerWelcome": "Installs BatteryBridge in Applications and its background charging service. macOS will request an administrator password. Requires an Apple Silicon Mac and macOS 11 or newer.",
+  "installerWelcome": "Installs BatteryBridge in Applications and its background charging service. macOS will request an administrator password. Requires an Intel or Apple Silicon Mac and macOS 11 or newer. Charging features depend on the hardware.",
   "installerUpdate": "Updating closes BatteryBridge and restarts the service. Saved settings are kept. On a first installation the charge limit is off.",
   "installerAccess": "Only local administrator accounts can change charging settings. The service keeps running after the app closes and starts after a reboot.",
   "installerReady": "BatteryBridge is ready",
@@ -81,5 +81,6 @@
   "sleepNotice": "On this Mac, the service controls charging while awake. Firmware may reset the charging gate during sleep; a closed-lid limit cannot be guaranteed.",
   "uninstall": "Uninstall BatteryBridge",
   "uninstallConfirm": "Remove the app, background service and saved charging settings? Normal charging will be restored first. macOS will request an administrator password. If restoration fails, removal stops.",
-  "cancel": "Cancel"
+  "cancel": "Cancel",
+  "reasonIntelBclm": "Intel SMC BCLM: firmware charge limit from 50% to 100%. Device write compatibility is experimental."
 }

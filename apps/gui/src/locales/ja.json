@@ -70,7 +70,7 @@
   "reasonGeneric": "汎用のしきい値モジュールでは利用できません。",
   "reasonLenovo": "上限が80%に固定されたLenovo WMIのバッテリー保護モードです。このデバイスでの書き込み動作は未検証です。",
   "installerTitle": "BatteryBridgeをインストール",
-  "installerWelcome": "BatteryBridgeをアプリケーションフォルダにインストールし、充電制御用のバックグラウンドサービスを追加します。macOSが管理者パスワードを要求します。Apple Silicon搭載MacとmacOS 11以降が必要です。",
+  "installerWelcome": "BatteryBridgeと充電用バックグラウンドサービスをインストールします。macOSが管理者パスワードを要求します。macOS 11以降のIntelまたはApple Silicon搭載Macが必要です。充電機能はハードウェアに依存します。",
   "installerUpdate": "更新時はBatteryBridgeを終了してサービスを再起動します。設定は保持されます。初回インストール時の充電上限はオフです。",
   "installerAccess": "充電設定を変更できるのはローカル管理者のみです。サービスはアプリを終了しても動作し、Macの再起動後も起動します。",
   "installerReady": "BatteryBridgeの準備ができました",
@@ -81,5 +81,6 @@
   "sleepNotice": "このMacでは、起動中にサービスが充電を制御します。スリープ中にファームウェアが充電禁止を解除する場合があるため、蓋を閉じた状態での上限は保証されません。",
   "uninstall": "BatteryBridgeをアンインストール",
   "uninstallConfirm": "アプリ、バックグラウンドサービス、保存した充電設定を削除しますか？最初に通常の充電に戻します。macOSが管理者パスワードを要求します。復元に失敗した場合、削除は中止されます。",
-  "cancel": "キャンセル"
+  "cancel": "キャンセル",
+  "reasonIntelBclm": "Intel SMC BCLM：ファームウェアによる50%〜100%の充電上限。書き込みの互換性は実験的です。"
 }

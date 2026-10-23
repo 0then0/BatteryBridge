@@ -1,0 +1,30 @@
+{
+  "bundle": {
+    "targets": [
+      "nsis"
+    ],
+    "resources": {
+      "../../../target/release/batterybridge.exe": "service/batterybridge.exe",
+      "../../../target/release/batterybridge-service.exe": "service/batterybridge-service.exe",
+      "../../../packaging/windows/permissions.ps1": "service/permissions.ps1",
+      "../../../packaging/windows/task-lifecycle.ps1": "service/task-lifecycle.ps1",
+      "../../../packaging/windows/install-packaged.ps1": "service/install-packaged.ps1",
+      "../../../packaging/windows/remove-packaged.ps1": "service/remove-packaged.ps1"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "perMachine",
+        "installerHooks": "../../../packaging/windows/installer-hooks.nsh",
+        "languages": [
+          "English",
+          "Russian",
+          "Spanish",
+          "German",
+          "French",
+          "Japanese",
+          "PortugueseBR"
+        ]
+      }
+    }
+  }
+}

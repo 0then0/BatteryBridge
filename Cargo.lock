@@ -152,7 +152,7 @@ checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
 
 [[package]]
 name = "batterybridge-cli"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "batterybridge-core",
  "batterybridge-ipc",
@@ -166,7 +166,7 @@ dependencies = [
 
 [[package]]
 name = "batterybridge-core"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "batterybridge-protocol",
  "serde",
@@ -177,7 +177,7 @@ dependencies = [
 
 [[package]]
 name = "batterybridge-gui"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "batterybridge-ipc",
  "batterybridge-platform",
@@ -189,7 +189,7 @@ dependencies = [
 
 [[package]]
 name = "batterybridge-ipc"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "batterybridge-protocol",
  "interprocess",
@@ -200,7 +200,7 @@ dependencies = [
 
 [[package]]
 name = "batterybridge-platform"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "batterybridge-core",
  "batterybridge-protocol",
@@ -213,7 +213,7 @@ dependencies = [
 
 [[package]]
 name = "batterybridge-protocol"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -222,7 +222,7 @@ dependencies = [
 
 [[package]]
 name = "batterybridge-service"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "batterybridge-core",
  "batterybridge-ipc",

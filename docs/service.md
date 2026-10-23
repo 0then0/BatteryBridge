@@ -6,6 +6,12 @@ The background service maintains one machine-wide charging policy and performs p
 
 The Linux and macOS commands below assume a source checkout with `cargo build --release --locked` completed. From an extracted platform archive, use `./batterybridge` and `./batterybridge-service` in place of the `target/release/` executable paths; the `packaging/` paths stay the same. Installation requires administrator privileges. For Windows, use an extracted platform archive or the source-build staging steps below. Keep installed executables and their parent directories protected from ordinary-user replacement.
 
+## Native installers
+
+For ordinary use, [install the platform package](install.md). It installs the GUI and starts its background component together. The manual instructions below are intended for source builds and developer archives, not for installation over a native package.
+
+Debian and RPM packages use `/usr/bin` and `/usr/lib/systemd/system/batterybridge.service`, with IPC access for the existing `sudo` or `wheel` administrator group respectively. Windows setup uses a protected `Program Files/BatteryBridge/service` directory and a SYSTEM scheduled task. The universal macOS package uses the same root helper paths on Intel and Apple Silicon.
+
 ## Linux: systemd
 
 Run from the repository root. Replace `YOUR_USER` with the account that will control charging. Skip `groupadd` if the group already exists.
@@ -47,7 +53,7 @@ Configuration and executables remain available for reuse or separate removal.
 
 For the graphical developer preview, use the [macOS installer](install.md). It installs the app and service together. The commands below are for manual source installations; do not run them over a packaged installation.
 
-Apple Silicon control uses privileged private SMC operations. Members of the local `admin` group can send charging commands over IPC. The app bundle does not install the service.
+macOS charge control uses privileged private SMC operations. Members of the local `admin` group can send charging commands over IPC. A source-built app bundle does not install the service; the native package does.
 
 Run from the repository root:
 
@@ -66,7 +72,7 @@ Run `batterybridge status` as your ordinary user to verify the connection. The l
 
 Socket: `/var/run/batterybridge/control.sock`. Configuration: `/Library/Application Support/BatteryBridge/config.toml`. Logs: `/var/log/batterybridge.log`; administrators should include this file in their log rotation policy.
 
-The service registers IOKit sleep/wake notifications, releases adapter isolation before sleep and reconciles policy on wake. launchd restarts it after exit with throttling. Firmware can still reset private SMC gates; see [macOS compatibility](hardware.md#macos-apple-silicon-smc).
+The service registers IOKit sleep/wake notifications, releases adapter isolation before sleep and reconciles policy on wake. launchd restarts it after exit with throttling. Firmware can still reset private SMC gates; see [macOS compatibility](hardware.md#macos-intel-and-apple-silicon-smc).
 
 ### Remove the service
 

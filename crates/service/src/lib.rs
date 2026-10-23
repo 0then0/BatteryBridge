@@ -94,6 +94,19 @@ impl Service {
     }
     fn execute(&mut self, command: Command) -> Result<Response> {
         match command {
+            // Monitoring-only installations have no hardware policy to release.
+            // A saved active limit still requires a working controller, so removal
+            // cannot silently leave previously configured hardware inhibition.
+            Command::Limit {
+                stop: None,
+                start: None,
+            } if self.controller.is_none()
+                && self.policy.config.charge_limit.is_none()
+                && !self.policy.top_up
+                && self.policy.discharge_target.is_none() =>
+            {
+                Ok(Response::Ok)
+            }
             Command::Status => Ok(Response::Status(Box::new(Snapshot {
                 batteries: self.platform.monitor.batteries()?,
                 device: self.platform.device.clone(),
@@ -258,6 +271,27 @@ mod tests {
             panic!("status");
         };
         assert_eq!(snapshot.last_error, None);
+    }
+    #[test]
+    fn monitoring_only_uninstall_accepts_off_but_does_not_hide_an_active_policy() {
+        let mut s = service(dir().join("config.toml"), Rc::new(RefCell::new(None)));
+        s.controller = None;
+        assert!(matches!(
+            s.handle(Request::new(Command::Limit {
+                stop: None,
+                start: None
+            })),
+            Response::Ok
+        ));
+        s.policy.config.charge_limit = Some(80);
+        assert!(matches!(
+            s.handle(Request::new(Command::Limit {
+                stop: None,
+                start: None
+            })),
+            Response::Error(_)
+        ));
+        assert_eq!(s.policy.config.charge_limit, Some(80));
     }
     #[test]
     fn persists_policy_and_clears_ephemeral_mode_on_restart() {

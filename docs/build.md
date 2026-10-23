@@ -43,43 +43,23 @@ Tauri builds the frontend, embeds it in the application and creates platform bun
 
 ### macOS installer package
 
-On an Apple Silicon Mac, first build the release CLI and service from the repository root with `cargo build --release --locked`, then build the desktop bundle with `npm --prefix apps/gui run tauri -- build --features desktop --bundles app`. Package all three components together:
+On a macOS build host, install both Rust targets and build the universal GUI, CLI and daemon:
 
 ```sh
-python3 -m unittest discover -s packaging/macos/tests -v
-python3 packaging/macos/build-pkg.py --output target/release/BatteryBridge-macos-apple-silicon.pkg
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
+python3 packaging/macos/build-universal.py
+python3 packaging/macos/build-pkg.py --output target/BatteryBridge-macos-universal.pkg
 ```
 
-The builder uses macOS `pkgbuild`, `productbuild` and `lipo`. It does not install or start the service on the build machine. The output is an unsigned graphical installer for the current system volume, with root-owned privileged helpers and a non-relocatable app in Applications. Use Developer ID signing and notarization before general public distribution.
+The package builder verifies both architectures in every executable and refuses a single-architecture payload. Universal output is in `target/universal-apple-darwin/release`. Native source builds remain useful for development but cannot be passed to this universal package builder.
 
-### Standalone debug binary
+Windows installer build (after `cargo build --release --locked`), from `apps/gui`:
 
 ```sh
-cd apps/gui
-npm ci
-npm run build:native
-../../target/debug/batterybridge-gui
+npm run tauri -- build --features desktop --config ../../packaging/windows/tauri.installer.conf.json
 ```
 
-On Windows, start `..\..\target\debug\batterybridge-gui.exe`. This build embeds the frontend and runs without a development server.
-
-### Development mode
-
-```sh
-cd apps/gui
-npm ci
-npm run tauri -- dev --features desktop
-```
-
-Development mode starts Vite on port 1420 and loads it in the native window for live updates. Opening that URL in a regular browser does not provide Tauri's native IPC bridge.
-
-A direct Cargo build with only the `desktop` feature expects the development server. For a standalone Cargo build, first run `npm run build` in `apps/gui`, then use:
-
-```sh
-cargo build -p batterybridge-gui --features desktop,custom-protocol --locked
-```
-
-Run this Cargo command from the repository root. Tauri CLI selects the appropriate frontend mode automatically.
+On Linux, use `../../packaging/linux/tauri.deb.conf.json` or `tauri.rpm.conf.json` instead. These configs include the release CLI and daemon, so build them before bundling. Install/uninstall integration tests run only on disposable CI machines; do not execute the `test-installer` scripts on your personal system.
 
 ## Checks
 

@@ -89,6 +89,21 @@ fn check(code: i32) -> Result<()> {
         )))
     }
 }
+fn validate_codec(kind: u32, length: usize) -> Result<()> {
+    let valid = match kind.to_be_bytes() {
+        [b'u', b'i', b'8', b' '] => length == 1,
+        [b'u', b'i', b'3', b'2'] => length == 4,
+        [b'h', b'e', b'x', b' '] => true,
+        _ => false,
+    };
+    if valid {
+        Ok(())
+    } else {
+        Err(Error::Unsupported(
+            "unexpected SMC key type or numeric length".into(),
+        ))
+    }
+}
 impl Smc {
     pub fn open() -> Result<Self> {
         // SAFETY: static service name, matching dictionary consumed by IOKit.
@@ -147,16 +162,7 @@ impl Smc {
                 "SMC key absent or unexpected length".into(),
             ));
         }
-        // Known charge keys are raw ui8/hex or ui32; reject strings and unexpected codecs.
-        if ![
-            u32::from_be_bytes(*b"ui8 "),
-            u32::from_be_bytes(*b"ui32"),
-            u32::from_be_bytes(*b"hex "),
-        ]
-        .contains(&info.kind)
-        {
-            return Err(Error::Unsupported("unexpected SMC key type".into()));
-        }
+        validate_codec(info.kind, length)?;
         Ok(self
             .call(Payload {
                 key: u32::from_be_bytes(key),
@@ -184,6 +190,13 @@ impl Smc {
             return Err(Error::HardwareError("SMC write readback mismatch".into()));
         }
         Ok(())
+    }
+    /// Intel firmware-managed maximum. Never expose arbitrary key writes over IPC.
+    pub fn set_stop(&self, stop: u8) -> Result<()> {
+        if !(50..=100).contains(&stop) {
+            return Err(Error::InvalidLimit("Intel BCLM supports 50..100%".into()));
+        }
+        self.write(*b"BCLM", &[stop])
     }
     pub fn gate(&self, enabled: bool) -> Result<()> {
         if self.read(*b"CHTE", 4).is_ok() {
@@ -214,6 +227,14 @@ impl Smc {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn numeric_codecs_require_their_declared_width() {
+        assert!(validate_codec(u32::from_be_bytes(*b"ui8 "), 1).is_ok());
+        assert!(validate_codec(u32::from_be_bytes(*b"ui32"), 4).is_ok());
+        assert!(validate_codec(u32::from_be_bytes(*b"ui32"), 1).is_err());
+        assert!(validate_codec(u32::from_be_bytes(*b"ui8 "), 4).is_err());
+        assert!(validate_codec(u32::from_be_bytes(*b"ch8*"), 1).is_err());
+    }
     #[test]
     fn smc_abi_layout() {
         assert_eq!(size_of::<Payload>(), 80);

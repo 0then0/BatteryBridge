@@ -51,7 +51,7 @@ def distribution(version):
     ET.SubElement(root, "title").text = "BatteryBridge"
     ET.SubElement(root, "welcome", {"file": "Welcome.html"})
     ET.SubElement(root, "conclusion", {"file": "Conclusion.html"})
-    ET.SubElement(root, "options", {"customize": "never", "hostArchitectures": "arm64",
+    ET.SubElement(root, "options", {"customize": "never", "hostArchitectures": "arm64,x86_64",
                                     "require-scripts": "true"})
     ET.SubElement(root, "domains", {"enable_localSystem": "true",
                                    "enable_currentUserHome": "false",
@@ -88,9 +88,9 @@ def stage_resources(destination):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--build-dir", type=Path, default=REPO / "target/release")
+    parser.add_argument("--build-dir", type=Path, default=REPO / "target/universal-apple-darwin/release")
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--version", default="0.1.1.3", help="Numeric Installer receipt version")
+    parser.add_argument("--version", default="0.2.0.4", help="Numeric Installer receipt version")
     args = parser.parse_args()
     output = args.output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -100,7 +100,7 @@ def main():
         stage_payload(payload, args.build_dir.resolve())
         for binary in (payload / HELPERS / CLIENT, payload / HELPERS / SERVICE,
                        payload / "Applications/BatteryBridge.app/Contents/MacOS/batterybridge-gui"):
-            subprocess.run(["lipo", str(binary), "-verify_arch", "arm64"], check=True)
+            subprocess.run(["lipo", str(binary), "-verify_arch", "arm64", "x86_64"], check=True)
         # Do not let Installer relocate this app to a developer's existing build.
         components = work / "components.plist"
         subprocess.run(["pkgbuild", "--analyze", "--root", str(payload), str(components)], check=True)

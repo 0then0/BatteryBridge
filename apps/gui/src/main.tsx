@@ -240,7 +240,7 @@ function App() {
           {t("limitExceeded")}
         </p>
       )}
-      {snapshot?.backend === "Apple Silicon SMC" && (
+      {["Apple Silicon SMC", "Intel SMC"].includes(snapshot?.backend ?? "") && (
         <p className="notice">{t("sleepNotice")}</p>
       )}
       {updated && (

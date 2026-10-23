@@ -10,7 +10,7 @@ The service exposes local IPC only. Its commands accept typed charging settings 
 
 ## Local access
 
-On Unix, sockets are created in an administrator-owned directory that is not group/world writable. Socket mode is `0660`. Linux grants access to root and the `batterybridge` group; macOS grants access to root and the local `admin` group. Group membership permits changes to the machine's charging policy, shared by all users.
+On Unix, sockets are created in an administrator-owned directory that is not group/world writable. Socket mode is `0660`. Manual Linux installation grants access to root and the `batterybridge` group. Native Linux packages instead use the existing local administrator group (`sudo` for Debian, `wheel` for RPM), without changing membership; macOS grants access to root and the local `admin` group. Group membership permits changes to the machine's charging policy, shared by all users.
 
 An OS file lock protects Unix endpoint ownership. Startup can reclaim a stale socket after confirming that no listener is active. Active listeners and non-socket paths are preserved.
 

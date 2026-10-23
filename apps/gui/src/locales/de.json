@@ -70,7 +70,7 @@
   "reasonGeneric": "Im generischen Schwellenmodul nicht verfügbar.",
   "reasonLenovo": "Lenovo-WMI-Akkuschonmodus mit festem Limit von 80%. Der Schreibzugriff wurde für dieses Gerät noch nicht geprüft.",
   "installerTitle": "BatteryBridge installieren",
-  "installerWelcome": "Installiert BatteryBridge unter Programme und den Ladedienst im Hintergrund. macOS fragt nach einem Administratorpasswort. Erfordert einen Mac mit Apple Silicon und macOS 11 oder neuer.",
+  "installerWelcome": "Installiert BatteryBridge unter Programme und den Hintergrunddienst. macOS fragt nach einem Administratorpasswort. Erfordert einen Intel- oder Apple-Silicon-Mac mit macOS 11 oder neuer. Die Ladefunktionen hängen von der Hardware ab.",
   "installerUpdate": "Beim Update wird BatteryBridge geschlossen und der Dienst neu gestartet. Einstellungen bleiben erhalten. Bei der ersten Installation ist das Ladelimit ausgeschaltet.",
   "installerAccess": "Nur lokale Administratoren können die Ladeeinstellungen ändern. Der Dienst läuft nach dem Schließen der App weiter und startet nach einem Neustart.",
   "installerReady": "BatteryBridge ist bereit",
@@ -81,5 +81,6 @@
   "sleepNotice": "Auf diesem Mac steuert der Dienst das Laden im Wachzustand. Die Firmware kann die Ladesperre im Ruhezustand zurücksetzen; das Limit bei geschlossenem Deckel ist nicht garantiert.",
   "uninstall": "BatteryBridge deinstallieren",
   "uninstallConfirm": "App, Hintergrunddienst und gespeicherte Ladeeinstellungen entfernen? Zuerst wird normales Laden wiederhergestellt. macOS fragt nach einem Administratorpasswort. Schlägt die Wiederherstellung fehl, wird die Deinstallation abgebrochen.",
-  "cancel": "Abbrechen"
+  "cancel": "Abbrechen",
+  "reasonIntelBclm": "Intel SMC BCLM: Firmware-Ladelimit von 50% bis 100%. Schreibkompatibilität ist experimentell."
 }

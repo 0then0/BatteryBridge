@@ -1,27 +1,21 @@
-## BatteryBridge 0.1.1
+## BatteryBridge 0.2.0
 
-This patch adds graphical macOS removal and corrects charging-policy transitions around sleep.
+### Native installation on each platform
 
-### Changes
+- **macOS:** one **BatteryBridge-macos-universal.pkg** for Intel and Apple Silicon, macOS 11+. GUI, CLI and daemon all contain native arm64 and x86_64 code. Open the package in Finder and approve the administrator prompt. Use the app's uninstall action for complete removal.
+- **Windows 10/11 x86_64:** **BatteryBridge-windows-x86_64-setup.exe** installs the GUI and a protected SYSTEM background task. No PowerShell setup is needed. Remove through Windows Settings; the uninstaller restores normal charging first.
+- **Linux x86_64:** `.deb` and `.rpm` include the GUI and systemd service. Open the package in a compatible graphical package manager. Debian packages authorize existing `sudo` group members; RPM uses `wheel`. No users are added to groups. Requires systemd and compatible WebKitGTK 4.1 libraries. Package removal disables the daemon and retains configuration for reinstallation.
 
-- **Uninstall without Terminal:** choose **Uninstall BatteryBridge** at the bottom of the macOS app, confirm and approve the administrator dialog. The app restores normal charging, unloads the service, and removes the installed app, helpers, saved policy and log. Removal stops if charging restoration or service unloading fails. Moving the app to Trash alone still leaves the service installed.
-- **Sleep and resume:** preparing for sleep no longer briefly releases the saved charging limit. Charging inhibition is retained after wake until the resume threshold is reached, instead of reopening the gate inside the hysteresis band.
-- **Visible diagnostics:** errors preparing for sleep survive successful awake polling. The UI identifies a percentage as a saved setting and warns when telemetry shows charging above it outside an explicit top-up.
-- New messages and removal controls are translated into English, Russian, Spanish, German, French, Japanese and Brazilian Portuguese.
-- The README includes direct downloads and checksums for each published platform.
+Updates preserve saved charging settings. The macOS app build is `4`; the Installer receipt is `0.2.0.4`. Install the new package over an earlier release. Developer archives remain available but do not install the background component themselves.
 
-### Install or update
+### Intel charge control
 
-On an Apple Silicon Mac with macOS 11 or newer, download **BatteryBridge-macos-apple-silicon.pkg**, open it in Finder and follow Installer. Open **Applications → BatteryBridge** after installation. Updating closes the running app, restarts the service and keeps the saved charge policy. No Terminal commands are required.
+Intel Macs now probe compatible SMC interfaces. A readable, valid `BCLM` key enables experimental firmware-managed thresholds from 50% to 100%, with write readback and temporary full charge. BCLM does not provide an adjustable start threshold or forced discharge. Compatible binary gates remain an experimental fallback. Unsupported hardware retains battery monitoring and reports capabilities explicitly.
 
-CLI, GUI and service use version `0.1.1`. The macOS bundle build is `3`; the Installer receipt is `0.1.1.3`. These versions replace `0.1.0` and the earlier preview without removing saved settings.
+Compilation and automated tests on Intel are not validation of charging on every Intel Mac. Physical Intel charging, sleep and firmware behavior still require device-level testing. Apple Silicon binary gates can be reset by firmware during sleep; a closed-lid percentage cap is not guaranteed. Lenovo WMI charge control remains experimental and fixed at 80%.
 
-Windows and Linux assets are developer archives with manual charging-service setup. `SHA256SUMS.txt` covers every downloadable asset.
+### Distribution
 
-### Hardware and distribution limitations
+Windows and macOS installers are unsigned; macOS is not notarized. Review origin and platform security prompts. Do not disable Gatekeeper or other system protections. Managed devices may prohibit unsigned installation.
 
-Apple Silicon SMC and Lenovo WMI charge control remain experimental. The sleep-transition regression is covered by automated tests, but this release has not been validated through a real closed-lid charging cycle. Private SMC gates can be reset by firmware during sleep: this patch does not establish a firmware-managed limit or guarantee a closed-lid percentage cap. Firmware may also refuse writes while awake. A saved setting alone is not proof of enforcement.
-
-The macOS package is unsigned and not notarized. If macOS blocks it, review its origin and use **System Settings → Privacy & Security → Open Anyway** only if you trust this release. Do not disable Gatekeeper. Intel Mac charging control is unsupported. Only local administrator accounts can change charging settings.
-
-To report a problem, include the OS version, device model and a reviewed compatibility report from the app. Reports exclude serial numbers and network identifiers.
+`SHA256SUMS.txt` covers all downloadable assets. The README lists direct links for each installer and developer archive.

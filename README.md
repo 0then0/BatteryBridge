@@ -11,7 +11,7 @@ BatteryBridge is a battery charge-control tool for Linux, macOS and Windows. It 
 
 Available controls depend on your laptop's kernel driver, firmware and vendor interfaces. BatteryBridge detects these capabilities and explains which features are available on your device.
 
-**Release:** 0.1.1. CI tests and builds the project on all three operating systems. Apple Silicon SMC and Lenovo WMI charge control remain experimental and require device-level validation; see [hardware compatibility](docs/hardware.md) for the current support boundaries.
+**Release:** 0.2.0. CI tests and builds the project on all three operating systems. Apple SMC and Lenovo WMI charge control remain experimental and require device-level validation; see [hardware compatibility](docs/hardware.md) for the current support boundaries.
 
 ## Features
 
@@ -27,26 +27,28 @@ Available controls depend on your laptop's kernel driver, firmware and vendor in
 
 <!-- downloads:start -->
 
-Direct downloads for stable release [v0.1.1](https://github.com/0then0/BatteryBridge/releases/tag/v0.1.1):
+Direct downloads for stable release [v0.2.0](https://github.com/0then0/BatteryBridge/releases/tag/v0.2.0):
 
 | Platform | Architecture | Download | Installation |
 | --- | --- | --- | --- |
-| macOS 11+ | Apple Silicon (arm64) | [Installer (.pkg)](https://github.com/0then0/BatteryBridge/releases/download/v0.1.1/BatteryBridge-macos-apple-silicon.pkg) | App and background service; no Terminal required |
-| macOS 11+ | Apple Silicon (arm64) | [Developer archive (.tar.gz)](https://github.com/0then0/BatteryBridge/releases/download/v0.1.1/batterybridge-macos-aarch64.tar.gz) | Manual service setup |
-| Windows | x86_64 | [Developer archive (.zip)](https://github.com/0then0/BatteryBridge/releases/download/v0.1.1/batterybridge-windows-x86_64.zip) | Manual service setup |
-| Linux | x86_64 | [Developer archive (.tar.gz)](https://github.com/0then0/BatteryBridge/releases/download/v0.1.1/batterybridge-linux-x86_64.tar.gz) | Manual service setup |
+| macOS 11+ | Intel + Apple Silicon (universal) | [Installer (.pkg)](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/BatteryBridge-macos-universal.pkg) | App and background service |
+| Windows 10/11 | x86_64 | [Installer (.exe)](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/BatteryBridge-windows-x86_64-setup.exe) | App and SYSTEM background task |
+| Ubuntu 24.04 / compatible Debian systems | x86_64 | [Debian package (.deb)](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/BatteryBridge-linux-x86_64.deb) | App and systemd service; requires the `sudo` group |
+| Fedora / compatible RPM systems | x86_64 | [RPM package (.rpm)](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/BatteryBridge-linux-x86_64.rpm) | App and systemd service; requires the `wheel` group |
 
-[SHA-256 checksums](https://github.com/0then0/BatteryBridge/releases/download/v0.1.1/SHA256SUMS.txt) · [Installation instructions](docs/install.md)
+Developer archives: [macOS universal](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/batterybridge-macos-universal.tar.gz), [Windows](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/batterybridge-windows-x86_64.zip), [Linux](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/batterybridge-linux-x86_64.tar.gz).
 
-The macOS installer is unsigned and not notarized. Intel Mac charge control is unsupported. Windows and Linux archives are intended for users comfortable with manual service installation.
+[SHA-256 checksums](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/SHA256SUMS.txt) · [Installation instructions](docs/install.md)
+
+The installers include the charging service; no separate Terminal or PowerShell setup is needed. macOS and Windows installers are unsigned. Linux packages require a running systemd system and compatible WebKitGTK 4.1 libraries; they are not universal Linux binaries. Hardware charge control remains device-dependent and experimental on macOS and Lenovo WMI.
 
 <!-- downloads:end -->
 
 ## Getting started
 
-On an Apple Silicon Mac, download **BatteryBridge-macos-apple-silicon.pkg** from [Releases](https://github.com/0then0/BatteryBridge/releases). Open it in Finder, complete installation and open **Applications → BatteryBridge**. The package installs and starts the charging service; Terminal is not required. See [installation](docs/install.md) for unsigned-preview prompts, account requirements and supported systems.
+Download the installer for your system above, open it in Finder, Explorer or your desktop's package manager, and approve the administrator prompt. Open **BatteryBridge** from Applications or the application menu. The installer starts the background charging service automatically.
 
-Windows and Linux downloads are developer archives with separate service setup. The macOS package is unsigned; the installation guide explains the system prompts.
+Use the system's app/package manager to remove Windows and Linux packages. On macOS, use **Uninstall BatteryBridge** in the app. See [installation](docs/install.md) for account permissions, updates, unsigned-package prompts and removal behavior.
 
 ### Build from source
 
@@ -83,14 +85,14 @@ npm ci
 npm run tauri -- build --features desktop
 ```
 
-The resulting app uses an embedded frontend. It does not require a web server on port 1420. A source-built app needs separate service setup; the macOS `.pkg` includes the service. Without service access, the app shows battery information in read-only mode.
+The resulting app uses an embedded frontend. It does not require a web server on port 1420. A source-built app needs separate service setup; the published platform installers include the service. Without service access, the app shows battery information in read-only mode.
 
 See [building from source](docs/build.md) for bundle locations, development mode and standalone debug builds.
 
 ## Compatibility
 
 - **Linux:** generic `charge_control_end_threshold` support, with a separate start threshold when exposed by the kernel. No vendor restriction.
-- **macOS:** battery monitoring through IOKit; experimental Apple Silicon charge control through private SMC interfaces. Intel Mac charge control is unsupported.
+- **macOS:** battery monitoring through IOKit; experimental SMC charge control on Intel and Apple Silicon. Intel BCLM supports firmware thresholds of 50–100% when detected; other models may be monitoring-only.
 - **Windows:** standard battery monitoring; experimental Lenovo WMI conservation mode with a fixed 80% limit, restricted to devices with one detected battery. Other vendor controllers are not yet implemented.
 
 Capabilities use four states: `supported`, `experimental`, `unsupported` and `unknown`. A readable interface does not guarantee that firmware will permit a write. Full feature descriptions and validation requirements are in [hardware compatibility](docs/hardware.md).
@@ -115,7 +117,7 @@ Compatibility reports include device model, OS version and detected charging int
 
 ## Roadmap
 
-Current priorities are device validation of the existing backends, broader Lenovo support, and controllers for ASUS, Dell, HP, MSI and Acer. Further work includes additional Linux vendor interfaces, firmware-managed Apple limits and a stable backend API.
+Current priorities are device validation of the existing backends, broader Lenovo support, and controllers for ASUS, Dell, HP, MSI and Acer. Further work includes additional Linux vendor interfaces, firmware-managed Apple Silicon limits and a stable backend API.
 
 ## License
 

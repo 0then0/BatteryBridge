@@ -21,9 +21,19 @@ pub fn discover() -> Result<Platform> {
         model: iokit::model(),
     };
     let mut interfaces = BTreeMap::from([("IOKit".into(), "available".into())]);
-    if cfg!(target_arch = "aarch64") {
+    if cfg!(any(target_arch = "aarch64", target_arch = "x86_64")) {
         match smc::Smc::open() {
             Ok(smc) => {
+                if cfg!(target_arch = "x86_64") {
+                    interfaces.insert(
+                        "SMC:BCLM".into(),
+                        match smc.read(*b"BCLM", 1) {
+                            Ok(value) if (50..=100).contains(&value[0]) => "available".into(),
+                            Ok(_) => "unsupported: invalid BCLM threshold".into(),
+                            Err(e) => e.to_string(),
+                        },
+                    );
+                }
                 for (key, len) in [(*b"CHTE", 4), (*b"CH0B", 1), (*b"CH0C", 1), (*b"CH0I", 1)] {
                     let result = smc.read(key, len);
                     interfaces.insert(
@@ -56,12 +66,14 @@ pub fn controller() -> Result<Box<dyn ChargeController>> {
     batterybridge_core::policy::require(&platform.report.capabilities.charge_limit)?;
     Ok(Box::new(Controller {
         smc: smc::Smc::open()?,
+        bclm: platform.backend() == "Intel SMC (BCLM)",
         caps: platform.report.capabilities,
     }))
 }
 struct Controller {
     smc: smc::Smc,
     caps: Capabilities,
+    bclm: bool,
 }
 impl ChargeController for Controller {
     fn capabilities(&self) -> Capabilities {
@@ -69,12 +81,18 @@ impl ChargeController for Controller {
     }
     fn apply(&mut self, start: Option<u8>, stop: Option<u8>) -> Result<()> {
         Command::Limit { start, stop }.validate()?;
+        if self.bclm {
+            return self.smc.set_stop(stop.unwrap_or(100));
+        }
         if stop.is_none() {
             self.smc.gate(true)?;
         }
         Ok(())
     }
     fn charging(&mut self, enabled: bool) -> Result<()> {
+        if self.bclm {
+            return Ok(());
+        }
         self.smc.gate(enabled)
     }
     fn force_discharge(&mut self, enabled: bool) -> Result<()> {
@@ -82,6 +100,9 @@ impl ChargeController for Controller {
         self.smc.discharge(enabled)
     }
     fn release(&mut self) -> Result<()> {
+        if self.bclm {
+            return self.smc.set_stop(100);
+        }
         let discharge = if self.caps.force_discharge.available() {
             self.smc.discharge(false)
         } else {

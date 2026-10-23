@@ -16,7 +16,7 @@ jobs:
           - os: windows-latest
             label: windows-x86_64
           - os: macos-latest
-            label: macos-aarch64
+            label: macos-universal
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -33,27 +33,57 @@ jobs:
         working-directory: apps/gui
       - run: npm run build
         working-directory: apps/gui
+      - name: Package lifecycle checks
+        if: runner.os != 'Windows'
+        run: python3 -m unittest discover -s packaging/tests -v
+      - name: Windows lifecycle checks
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./packaging/windows/test-permissions.ps1; ./packaging/windows/test-lifecycle.ps1
       - run: cargo test --workspace --all-features --locked
       - run: cargo build --workspace --all-features --release --locked
-      - name: Build unsigned desktop bundle
-        run: npm run tauri -- build --features desktop
-        working-directory: apps/gui
-      - name: Build macOS graphical installer with charging service
+        if: runner.os != 'macOS'
+      - name: Build universal macOS binaries and installer
         if: runner.os == 'macOS'
         run: |
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          python3 packaging/macos/build-universal.py
           python3 -m unittest discover -s packaging/macos/tests -v
-          python3 packaging/macos/build-pkg.py --output target/release/BatteryBridge-macos-apple-silicon.pkg
-          pkgutil --check-signature target/release/BatteryBridge-macos-apple-silicon.pkg || test "$?" -eq 1
+          python3 packaging/macos/build-pkg.py --output BatteryBridge-macos-universal.pkg
+          pkgutil --check-signature BatteryBridge-macos-universal.pkg || test "$?" -eq 1
+      - name: Build Windows installer with background task
+        if: runner.os == 'Windows'
+        working-directory: apps/gui
+        run: npm run tauri -- build --features desktop --config ../../packaging/windows/tauri.installer.conf.json
+      - name: Verify Windows installation and removal
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./packaging/windows/test-installer.ps1
+          Copy-Item (Get-ChildItem target/release/bundle/nsis/*-setup.exe | Select-Object -First 1).FullName BatteryBridge-windows-x86_64-setup.exe
+      - name: Build Linux desktop packages with systemd service
+        if: runner.os == 'Linux'
+        working-directory: apps/gui
+        run: |
+          npm run tauri -- build --features desktop --config ../../packaging/linux/tauri.deb.conf.json
+          npm run tauri -- build --features desktop --config ../../packaging/linux/tauri.rpm.conf.json
+      - name: Verify Debian package installation and removal
+        if: runner.os == 'Linux'
+        run: |
+          ./packaging/linux/test-installer.sh
+          cp target/release/bundle/deb/*.deb BatteryBridge-linux-x86_64.deb
+          cp target/release/bundle/rpm/*.rpm BatteryBridge-linux-x86_64.rpm
       - name: Stage CLI, daemon, service definitions and license
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force artifact | Out-Null
           if ($IsWindows) { $suffix = '.exe' } else { $suffix = '' }
-          Copy-Item "target/release/batterybridge$suffix" artifact/
-          Copy-Item "target/release/batterybridge-service$suffix" artifact/
+          $build = if ($IsMacOS) { 'target/universal-apple-darwin/release' } else { 'target/release' }
+          Copy-Item "$build/batterybridge$suffix" artifact/
+          Copy-Item "$build/batterybridge-service$suffix" artifact/
           Copy-Item README.md,LICENSE artifact/
           Copy-Item -Recurse packaging,docs,assets artifact/
-          Copy-Item -Recurse target/release/bundle artifact/gui
+          Copy-Item -Recurse "$build/bundle" artifact/gui
           $root = (Resolve-Path artifact).Path
           $hashes = Get-ChildItem artifact -Recurse -File | ForEach-Object {
             $relative = [System.IO.Path]::GetRelativePath($root, $_.FullName).Replace('\', '/')
@@ -75,10 +105,9 @@ jobs:
             batterybridge-*.tar.gz
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
-        if: runner.os == 'macOS'
         with:
-          name: macos-installer
-          path: target/release/BatteryBridge-macos-apple-silicon.pkg
+          name: installers-${{ matrix.label }}
+          path: BatteryBridge-*
           if-no-files-found: error
   publish:
     if: startsWith(github.ref, 'refs/tags/v')

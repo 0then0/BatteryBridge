@@ -4,9 +4,9 @@
 
 ## macOS
 
-The graphical installer supports Apple Silicon Macs running macOS 11 or newer. It installs both the desktop app and the charging service. No Terminal commands are required.
+The graphical installer supports Intel and Apple Silicon Macs running macOS 11 or newer. It installs both the desktop app and the charging service. No Terminal commands are required.
 
-1. Download **BatteryBridge-macos-apple-silicon.pkg** from a [GitHub release](https://github.com/0then0/BatteryBridge/releases).
+1. Download **BatteryBridge-macos-universal.pkg** from a [GitHub release](https://github.com/0then0/BatteryBridge/releases).
 2. Open it in Finder, follow Installer and enter an administrator password when prompted.
 3. Open **Applications → BatteryBridge** from a local administrator account.
 4. Choose a stop percentage and **Apply limit**. The saved limit should appear above the controls. If firmware refuses the operation, the app displays an error.
@@ -15,7 +15,7 @@ The package is unsigned and not notarized. If macOS blocks it, review its origin
 
 A new installation starts with the charge limit off. The service runs after the app closes and starts at boot. Updating closes an existing BatteryBridge app, restarts the service and preserves its settings. Open the installed copy in Applications after an update, rather than a previous development binary.
 
-The GUI should no longer show **Read-only mode** for a local administrator. Standard accounts retain read-only access. Installing the service does not establish firmware compatibility: Apple Silicon SMC charging operations are experimental.
+The GUI should no longer show **Read-only mode** for a local administrator. Standard accounts retain read-only access. Installing the service does not establish firmware compatibility: SMC charging operations are experimental. Intel BCLM thresholds require a readable, compatible key; unsupported models remain in monitoring mode.
 
 To restore normal charging without uninstalling, select **Turn off** in the app.
 
@@ -23,9 +23,25 @@ In version 0.1.1 and newer, choose **Uninstall BatteryBridge** at the bottom of 
 
 Moving the app to Trash alone leaves the background service installed. Version 0.1.0 does not include the graphical uninstaller; use the [administrative removal instructions](service.md#remove-the-packaged-macos-service), or install a newer build first.
 
-## Windows and Linux
+## Windows
 
-The release provides developer archives on these platforms. Desktop bundles do not yet install their charging service. Follow [service installation](service.md) to enable control, or [build from source](build.md). Battery status and compatibility reports work without the service.
+Download **BatteryBridge-windows-x86_64-setup.exe**, open it in Explorer and approve UAC. The installer places the app in **Program Files → BatteryBridge**, creates application shortcuts, installs a protected background task running as SYSTEM and starts it. WebView2 is installed by the Tauri installer if needed. You do not need an elevated PowerShell window.
+
+The task starts at boot and logon and keeps running after the GUI closes. Existing charging settings are preserved during upgrades. Install in the default Program Files location; custom locations are rejected so that SYSTEM never runs user-writable code.
+
+Remove BatteryBridge through **Settings → Apps → Installed apps**. The uninstaller restores normal charging when a saved limit is enabled, stops and unregisters the task, and removes its settings and binaries. A failed restoration stops removal. The installer is currently unsigned; review the download origin and Windows security prompts. Organization policies may prevent unsigned installation.
+
+## Linux
+
+Use the `.deb` package on Ubuntu 24.04 or a compatible Debian system, or `.rpm` on a compatible Fedora system. Open it in your desktop's package manager and approve authentication. Package dependencies must be available from the distribution's repositories. The packages require systemd and WebKitGTK 4.1; minimal/headless distributions without a graphical package manager may still require command-line administration.
+
+The package installs the GUI, CLI, daemon and systemd unit, enables the service at boot and starts it immediately. For package installations, existing members of `sudo` (Debian/Ubuntu) or `wheel` (RPM) can change charging settings without running the GUI as root. Other users can inspect battery status through the read-only fallback. The package does not add users to administrator groups or grant world-writable access. Manual source installation retains its separate `batterybridge` group policy.
+
+Open **BatteryBridge** from your application menu. Remove it through the package manager: the service is stopped with an orderly hardware release, disabled and removed with the executables. Saved configuration in `/var/lib/batterybridge` is retained for reinstallation; it does not run background functions. Updates preserve this configuration and restart the service. Do not install both package formats on the same system.
+
+## Developer archives
+
+The archives contain standalone binaries and the platform's desktop bundles and packaging resources. Running a GUI extracted from an archive does not install its service. Use the native installer for ordinary installation, or follow [manual service setup](service.md).
 
 ## Verify a download
 

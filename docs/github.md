@@ -20,7 +20,7 @@ A successful run confirms software checks on the runner operating systems. Devic
 
 ## Build artifacts
 
-The release workflow runs for `v*` tags or through manual workflow dispatch. It produces archives for Linux x86_64, Windows x86_64 and macOS Apple Silicon, containing:
+The release workflow runs for `v*` tags or through manual workflow dispatch. It produces archives for Linux x86_64, Windows x86_64 and macOS universal (Intel and Apple Silicon), containing:
 
 - CLI and service executables.
 - Native desktop bundles under `gui`.
@@ -28,13 +28,13 @@ The release workflow runs for `v*` tags or through manual workflow dispatch. It 
 - Documentation, license and icon assets.
 - `SHA256SUMS.txt` with hashes for the staged files.
 
-Download an artifact from the completed workflow run and extract its archive. GitHub may require sign-in to download workflow artifacts. Desktop bundles are unsigned unless signing is configured separately. The additional `macos-installer` artifact contains a graphical `.pkg` with the app and charging service. Windows and Linux archives still require separate service installation.
+Download an artifact from the completed workflow run and extract its archive. GitHub may require sign-in to download workflow artifacts. Desktop bundles are unsigned unless signing is configured separately. The `installers-*` artifacts contain a universal macOS `.pkg`, Windows setup `.exe`, and Linux `.deb`/`.rpm` packages. Each includes its background component. Developer archives still require separate service installation.
 
 ## Prepare a release
 
 Maintainers should verify the selected commit's CI results, review release notes in `packaging/macos/RELEASE.md` and compatibility information before creating a version tag. Pushing a `v*` tag builds all three platforms and publishes a GitHub Release only after every build succeeds. Tags containing a hyphen, such as `v0.1.0-dev.1`, create pre-releases. Manual workflow dispatch builds artifacts without publishing.
 
-Release `v0.1.1` uses application version `0.1.1`, macOS bundle build `3` and Installer receipt version `0.1.1.3`, upgrading stable `0.1.0` (build `2`, receipt `0.1.0.2`) and the first preview (receipt `0.1.0.1`). The `v0.1.0-dev.1` tag remains available as a pre-release. Increment the receipt version for subsequent package updates using the builder's `--version` argument; keep the workflow and release tag consistent. Release assets include an outer `SHA256SUMS.txt` covering each downloadable package/archive.
+Release `v0.2.0` uses application version `0.2.0`, macOS bundle build `4` and Installer receipt version `0.2.0.4`, upgrading stable `0.1.0` (build `2`, receipt `0.1.0.2`) and the first preview (receipt `0.1.0.1`). The `v0.1.0-dev.1` tag remains available as a pre-release. Increment the receipt version for subsequent package updates using the builder's `--version` argument; keep the workflow and release tag consistent. Release assets include an outer `SHA256SUMS.txt` covering each downloadable package/archive.
 
 Version numbers are declared in the root `Cargo.toml`, `apps/gui/package.json` and `apps/gui/src-tauri/tauri.conf.json`. Keep the corresponding lockfile metadata consistent when preparing a release.
 

@@ -110,7 +110,7 @@ pub fn resolve(facts: Facts) -> ProbeReport {
             )
         }
         "macos" => {
-            let gate = facts.device.architecture == "aarch64"
+            let gate = matches!(facts.device.architecture.as_str(), "aarch64" | "x86_64")
                 && (has("SMC:CHTE") || (has("SMC:CH0B") && has("SMC:CH0C")));
             if gate {
                 caps.charge_limit = Capability::experimental(
@@ -125,13 +125,32 @@ pub fn resolve(facts: Facts) -> ProbeReport {
                         Capability::experimental("SMC CH0I; daemon restores adapter at target");
                 }
             }
+            let bclm = facts.device.architecture == "x86_64" && has("SMC:BCLM");
+            if bclm {
+                caps = Capabilities::unsupported("not exposed by Intel BCLM");
+                caps.charge_limit = Capability::experimental(
+                    "Intel SMC BCLM firmware threshold, 50..100%; device write compatibility is unverified",
+                );
+                caps.stop_threshold = caps.charge_limit.clone();
+                caps.temporary_full_charge =
+                    Capability::experimental("temporary 100% threshold, restored by daemon");
+                caps.allowed_limits = Some((50..=100).collect());
+            }
             (
-                "Apple Silicon SMC",
-                gate,
-                if gate {
+                if bclm {
+                    "Intel SMC (BCLM)"
+                } else if facts.device.architecture == "x86_64" {
+                    "Intel SMC"
+                } else {
+                    "Apple Silicon SMC"
+                },
+                gate || bclm,
+                if bclm {
+                    "Intel BCLM firmware threshold detected; write compatibility is unverified"
+                } else if gate {
                     "SMC charging gate detected; write compatibility is unverified for this device"
                 } else {
-                    "Intel Mac or no accessible known SMC gate"
+                    "no accessible known SMC gate"
                 },
             )
         }
@@ -161,7 +180,10 @@ pub fn resolve(facts: Facts) -> ProbeReport {
         }
         _ => ("unsupported", false, "unsupported OS"),
     };
-    if facts.device.os == "macos" && facts.device.architecture == "aarch64" && !selected {
+    if facts.device.os == "macos"
+        && matches!(facts.device.architecture.as_str(), "aarch64" | "x86_64")
+        && !selected
+    {
         let denial = facts.interfaces.iter().find(|(name, value)| {
             (name.starts_with("SMC:") || name.as_str() == "AppleSMC")
                 && value.starts_with("permission denied:")
