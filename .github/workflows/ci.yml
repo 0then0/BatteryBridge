@@ -35,6 +35,17 @@ jobs:
           timeout 8s xvfb-run -a target/debug/batterybridge-gui --preview apps/gui/tests/status.json
           result=$?
           test "$result" -eq 124
+      - name: Windows native GUI startup
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $fixture = (Resolve-Path apps/gui/tests/status.json).Path
+          $process = Start-Process target/debug/batterybridge-gui.exe -ArgumentList @('--preview', $fixture) -RedirectStandardError gui-stderr.log -RedirectStandardOutput gui-stdout.log -PassThru
+          if ($process.WaitForExit(8000)) {
+            Get-Content gui-stderr.log,gui-stdout.log
+            throw "Native GUI exited during startup: $($process.ExitCode)"
+          }
+          Stop-Process -Id $process.Id -Force
       - name: macOS installer lifecycle checks
         if: runner.os == 'macOS'
         run: python3 -m unittest discover -s packaging/macos/tests -v
