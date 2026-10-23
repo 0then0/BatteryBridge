@@ -115,20 +115,40 @@ function App() {
         </button>
       </header>
       <section className="battery-view" aria-label="Battery status">
+        <svg
+          className="charge-orbit"
+          viewBox="0 0 240 240"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <title>Decorative orbital grid</title>
+          <g className="orbit-lines" fill="none">
+            <circle cx="120" cy="120" r="96" />
+            <circle cx="120" cy="120" r="72" strokeDasharray="1 7" />
+            <ellipse cx="120" cy="120" rx="42" ry="96" />
+            <ellipse cx="120" cy="120" rx="96" ry="36" />
+            <path d="M12 120h216M120 12v216" />
+          </g>
+          <g className="orbit-points">
+            <circle cx="120" cy="24" r="3" />
+            <circle cx="203" cy="72" r="4" />
+            <circle cx="188" cy="188" r="3" />
+            <circle cx="52" cy="52" r="3" />
+            <circle cx="48" cy="120" r="2" />
+            <circle cx="120" cy="192" r="2" />
+          </g>
+        </svg>
+        <span className="eyebrow battery-label">BATTERY STATUS</span>
         <div className="charge">
           <span>{battery?.percent ?? "—"}</span>
           <span className="percent">%</span>
         </div>
-        <div
+        <progress
           className="battery-track"
-          role="progressbar"
           aria-label="Battery charge"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={battery?.percent ?? undefined}
-        >
-          <span style={{ width: `${battery?.percent ?? 0}%` }} />
-        </div>
+          max={100}
+          value={battery?.percent ?? undefined}
+        />
         <p>
           <span className="dot" />
           {battery?.state ??
@@ -181,8 +201,13 @@ function App() {
       {supported ? (
         <section className="policy">
           <div className="section-heading">
-            <h1>Charge limit</h1>
-            <span>
+            <div className="section-title">
+              <span className="section-mark" aria-hidden="true">
+                ✳
+              </span>
+              <h1>Charge limit</h1>
+            </div>
+            <span className="policy-state">
               {readOnly
                 ? "Settings unavailable"
                 : snapshot?.top_up_active
