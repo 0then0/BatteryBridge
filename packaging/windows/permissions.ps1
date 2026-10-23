@@ -1,4 +1,7 @@
 # Fixed ACL policy for the SYSTEM task. This file performs no task registration.
+# NSIS can inherit PowerShell 7's module search path while running Windows PowerShell.
+# Load the security cmdlets belonging to this runtime, not a parent's module copy.
+Import-Module "$PSHOME\Modules\Microsoft.PowerShell.Security\Microsoft.PowerShell.Security.psd1" -ErrorAction Stop
 function Protect-BatteryBridgeDirectory {
     param([Parameter(Mandatory)][string]$LiteralPath, [switch]$ReadUsers)
     $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()

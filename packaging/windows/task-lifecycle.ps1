@@ -1,6 +1,7 @@
 # Shared by the graphical installer and the administrator's manual setup scripts.
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\permissions.ps1"
+Import-Module "$env:WINDIR\System32\WindowsPowerShell\v1.0\Modules\ScheduledTasks\ScheduledTasks.psd1" -ErrorAction Stop
 
 function Stop-BatteryBridgeTask {
     $task = Get-ScheduledTask -TaskName 'BatteryBridge' -ErrorAction SilentlyContinue
