@@ -15,12 +15,14 @@ graphics libraries:
 
 ```sh
 sudo apt-get update
-sudo apt-get install -y libxkbcommon-dev libwayland-dev libgl1-mesa-dev libegl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev fonts-noto-cjk
+sudo apt-get install -y libxkbcommon-dev libxkbcommon-x11-0 libwayland-dev libgl1-mesa-dev libegl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev fonts-noto-cjk
 ```
 
 Use the committed `Cargo.lock`. fastframe modules are pinned to release `v0.14.1`
 and its resolved Git commit in the lockfile. The app uses released egui/eframe
-0.36.2 without upstream forks. Native package builders require Python 3.9+.
+0.36.2 without upstream forks. Windows uses WGPU so the GUI does not require a
+separate OpenGL driver; macOS and Linux use Glow. Native package builders require
+Python 3.9+.
 
 ## CLI and service
 

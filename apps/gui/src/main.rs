@@ -368,6 +368,10 @@ fn run() -> Result<(), String> {
     shell
         .run(|lease| {
             let mut options = eframe::NativeOptions {
+                #[cfg(target_os = "windows")]
+                renderer: eframe::Renderer::Wgpu,
+                #[cfg(not(target_os = "windows"))]
+                renderer: eframe::Renderer::Glow,
                 viewport: egui::ViewportBuilder::default()
                     .with_app_id(if preview {
                         "io.github.batterybridge.preview"

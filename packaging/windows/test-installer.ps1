@@ -32,6 +32,7 @@ $client = Join-Path $installed 'service/batterybridge.exe'
 if ($LASTEXITCODE -ne 0) { throw 'Installed service did not answer IPC' }
 $task = Get-ScheduledTask -TaskName 'BatteryBridge'
 if ($task.Principal.UserId -notin @('SYSTEM','S-1-5-18')) { throw 'Task must run as SYSTEM' }
+& "$PSScriptRoot/test-gui.ps1" -Executable (Join-Path $installed 'batterybridge-gui.exe')
 Get-Process batterybridge-gui -ErrorAction SilentlyContinue | Stop-Process -Force
 Invoke-Installer -FilePath (Join-Path $installed 'uninstall.exe')
 # NSIS copies its uninstaller to a temporary child process before removing itself.

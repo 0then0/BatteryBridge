@@ -12,10 +12,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app import REPO, VERSION, licenses
 
 HERE = Path(__file__).resolve().parent
-DEB_DEPENDS = ['systemd', 'libc6 (>= 2.39)', 'libgl1', 'libegl1', 'libxkbcommon0',
+DEB_DEPENDS = ['systemd', 'libc6 (>= 2.39)', 'libgl1', 'libegl1', 'libxkbcommon0', 'libxkbcommon-x11-0',
                'libwayland-client0', 'libwayland-egl1', 'libx11-6', 'libxcursor1', 'libxi6', 'libxrandr2', 'libxcb1']
 RPM_DEPENDS = ['systemd', '/usr/bin/getent', 'libGL.so.1()(64bit)', 'libEGL.so.1()(64bit)',
-               'libxkbcommon.so.0()(64bit)', 'libwayland-client.so.0()(64bit)', 'libwayland-egl.so.1()(64bit)', 'libX11.so.6()(64bit)',
+               'libxkbcommon.so.0()(64bit)', 'libxkbcommon-x11.so.0()(64bit)', 'libwayland-client.so.0()(64bit)', 'libwayland-egl.so.1()(64bit)', 'libX11.so.6()(64bit)',
                'libXcursor.so.1()(64bit)', 'libXi.so.6()(64bit)', 'libXrandr.so.2()(64bit)', 'libxcb.so.1()(64bit)']
 
 

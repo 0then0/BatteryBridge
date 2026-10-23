@@ -16,7 +16,7 @@ jobs:
           components: rustfmt, clippy
       - name: Linux native graphics prerequisites
         if: runner.os == 'Linux'
-        run: sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update && sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y libxkbcommon-dev libwayland-dev libgl1-mesa-dev libegl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev fonts-noto-cjk xvfb
+        run: sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update && sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y libxkbcommon-dev libxkbcommon-x11-0 libwayland-dev libgl1-mesa-dev libegl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev fonts-noto-cjk xvfb
       - name: Package lifecycle checks
         if: runner.os != 'Windows'
         run: python3 -m unittest discover -s packaging/tests -v
@@ -38,14 +38,7 @@ jobs:
       - name: Windows native GUI startup
         if: runner.os == 'Windows'
         shell: pwsh
-        run: |
-          $fixture = (Resolve-Path apps/gui/tests/status.json).Path
-          $process = Start-Process target/debug/batterybridge-gui.exe -ArgumentList @('--preview', $fixture) -RedirectStandardError gui-stderr.log -RedirectStandardOutput gui-stdout.log -PassThru
-          if ($process.WaitForExit(8000)) {
-            Get-Content gui-stderr.log,gui-stdout.log
-            throw "Native GUI exited during startup: $($process.ExitCode)"
-          }
-          Stop-Process -Id $process.Id -Force
+        run: ./packaging/windows/test-gui.ps1
       - name: macOS installer lifecycle checks
         if: runner.os == 'macOS'
         run: python3 -m unittest discover -s packaging/macos/tests -v
