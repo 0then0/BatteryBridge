@@ -14,8 +14,6 @@
       {
         "label": "main",
         "title": "BatteryBridge",
-        "theme": "Dark",
-        "backgroundColor": "#0d0d0f",
         "width": 420,
         "height": 730,
         "minWidth": 320,
