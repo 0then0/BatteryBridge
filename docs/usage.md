@@ -79,3 +79,10 @@ The app supports English (`en`), Russian (`ru`), Spanish (`es`), German (`de`), 
 Use **Language** at the bottom of the window to override the system choice. The language names are written in their own languages. The preference is saved locally and changing it does not apply, discard or reset charging inputs. Choose **System default** to return to automatic selection. Theme selection always follows the system independently of language.
 
 Labels, battery states, capability explanations, app notices and tray actions are translated. The macOS Installer welcome and completion pages use the system language, independently of the app's saved choice. CLI output, compatibility JSON and unknown OS/firmware diagnostic details retain their original text and field names for support and automation.
+
+## Export from the desktop app
+
+Choose **Generate compatibility report**, review the JSON and use **Copy JSON**
+or **Save JSON report**. The native app proposes a file in Downloads when that
+folder exists, otherwise in your home directory. You can edit the destination.
+Saving never overwrites an existing file; choose a new name if it already exists.

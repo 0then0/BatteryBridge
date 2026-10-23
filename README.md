@@ -7,11 +7,11 @@
 [![Rust](https://img.shields.io/badge/Rust-1.90%2B-934b32)](https://www.rust-lang.org/)
 [![Status](https://img.shields.io/badge/status-experimental-99743b)](docs/hardware.md)
 
-BatteryBridge is a battery charge-control tool for Linux, macOS and Windows. It provides a standalone CLI, a background service and a Tauri tray app, with shared charging policies implemented in Rust.
+BatteryBridge is a battery charge-control tool for Linux, macOS and Windows. It provides a standalone CLI, a background service and a native egui tray app, with shared charging policies implemented in Rust.
 
 Available controls depend on your laptop's kernel driver, firmware and vendor interfaces. BatteryBridge detects these capabilities and explains which features are available on your device.
 
-**Release:** 0.2.0. CI tests and builds the project on all three operating systems. Apple SMC and Lenovo WMI charge control remain experimental and require device-level validation; see [hardware compatibility](docs/hardware.md) for the current support boundaries.
+**Stable release:** 0.2.0. The source tree prepares 0.3.0 with a native Rust GUI; published 0.2.0 packages still use the earlier Tauri interface. CI tests and builds the project on all three operating systems. Apple SMC and Lenovo WMI charge control remain experimental and require device-level validation; see [hardware compatibility](docs/hardware.md) for the current support boundaries.
 
 ## Features
 
@@ -77,17 +77,16 @@ A backend may support only some of these settings. For example, the Lenovo WMI b
 
 ### Desktop app
 
-The tray app uses Tauri, React and TypeScript. Install Node.js 22.12 or newer and the platform prerequisites listed in the [build guide](docs/build.md), then run:
+The source GUI uses egui/eframe with selected fastframe modules. With Rust 1.98+ and the native graphics prerequisites from the [build guide](docs/build.md):
 
 ```sh
-cd apps/gui
-npm ci
-npm run tauri -- build --features desktop
+cargo run -p batterybridge-gui --locked
+cargo build -p batterybridge-gui --release --locked
 ```
 
-The resulting app uses an embedded frontend. It does not require a web server on port 1420. A source-built app needs separate service setup; the published platform installers include the service. Without service access, the app shows battery information in read-only mode.
+The app connects directly to the shared Rust IPC client and needs no web server. A source-built app needs separate service setup; native platform installers include the service. Without service access, it displays battery information in read-only mode.
 
-See [building from source](docs/build.md) for bundle locations, development mode and standalone debug builds.
+See [building from source](docs/build.md) for native installers, universal macOS packaging and safe previews.
 
 ## Compatibility
 

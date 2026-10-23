@@ -14,7 +14,7 @@ For a compatibility issue, include the affected feature, device model, relevant 
 
 ## Continuous integration
 
-The CI workflow runs on pushes and pull requests. It installs desktop build prerequisites, checks the frontend with Biome and TypeScript, then runs Rust formatting, Clippy, tests and builds with all features enabled. Windows also runs the installer ACL regression script.
+The CI workflow runs on pushes and pull requests. It installs native graphics prerequisites, then runs Rust formatting, Clippy, tests and builds on Linux, Windows, Apple Silicon macOS and Intel macOS. GUI tests exercise catalogs, fonts and layouts without hardware access. Windows also checks installer ACLs, task lifecycle and the actual NSIS preparation hook. Linux starts a synthetic preview under Xvfb.
 
 A successful run confirms software checks on the runner operating systems. Device-level charging behavior is validated separately using the [hardware procedure](hardware.md#device-validation).
 
@@ -34,12 +34,10 @@ Download an artifact from the completed workflow run and extract its archive. Gi
 
 Maintainers should verify the selected commit's CI results, review release notes in `packaging/macos/RELEASE.md` and compatibility information before creating a version tag. Pushing a `v*` tag builds all three platforms and publishes a GitHub Release only after every build succeeds. Tags containing a hyphen, such as `v0.1.0-dev.1`, create pre-releases. Manual workflow dispatch builds artifacts without publishing.
 
-Release `v0.2.0` uses application version `0.2.0`, macOS bundle build `4` and Installer receipt version `0.2.0.4`, upgrading stable `0.1.0` (build `2`, receipt `0.1.0.2`) and the first preview (receipt `0.1.0.1`). The `v0.1.0-dev.1` tag remains available as a pre-release. Increment the receipt version for subsequent package updates using the builder's `--version` argument; keep the workflow and release tag consistent. Release assets include an outer `SHA256SUMS.txt` covering each downloadable package/archive.
-
-Version numbers are declared in the root `Cargo.toml`, `apps/gui/package.json` and `apps/gui/src-tauri/tauri.conf.json`. Keep the corresponding lockfile metadata consistent when preparing a release.
+Application version comes from the root `Cargo.toml`; numeric macOS build and receipt metadata come from `packaging/app.py`. The current source prepares 0.3.0 with bundle build 5 and receipt 0.3.0.5. Published v0.2.0 remains the last release of the previous GUI. Keep the version, release tag and Cargo lockfile metadata consistent. The workflow generates an outer `SHA256SUMS.txt` covering downloadable packages and archives.
 
 Keep CLI, GUI and service versions together when distributing a build. Protocol-incompatible components reject requests explicitly.
 
 ## Dependency updates
 
-Dependabot checks Cargo, npm and GitHub Actions dependencies monthly. Patch and minor updates are grouped, major updates are excluded from automatic proposals, and automatic merging is disabled. Review dependency changes through the same checks as other pull requests.
+Dependabot checks Cargo and GitHub Actions dependencies monthly. Patch and minor updates are grouped, major updates are excluded from automatic proposals, and automatic merging is disabled. Review dependency changes through the same checks as other pull requests.

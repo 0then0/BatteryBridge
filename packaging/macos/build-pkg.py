@@ -8,8 +8,12 @@ import plistlib
 import shutil
 import subprocess
 import tempfile
+import sys
 from pathlib import Path
 from xml.etree import ElementTree as ET
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from app import RECEIPT
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
@@ -70,7 +74,7 @@ def distribution(version):
 
 def stage_resources(destination):
     """Installer selects a .lproj matching the user's preferred system language."""
-    for source in sorted((REPO / "apps/gui/src/locales").glob("*.json")):
+    for source in sorted((REPO / "apps/gui/locales").glob("*.json")):
         catalog = json.loads(source.read_text(encoding="utf-8"))
         target = destination / f"{source.stem}.lproj"
         target.mkdir(parents=True)
@@ -90,7 +94,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build-dir", type=Path, default=REPO / "target/universal-apple-darwin/release")
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--version", default="0.2.0.4", help="Numeric Installer receipt version")
+    parser.add_argument("--version", default=RECEIPT, help="Numeric Installer receipt version")
     args = parser.parse_args()
     output = args.output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)

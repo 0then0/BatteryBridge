@@ -1,29 +1,30 @@
-## BatteryBridge 0.2.0
+## BatteryBridge 0.3.0
 
-### Native installation on each platform
+### Native Rust desktop app
 
-- **macOS:** one **BatteryBridge-macos-universal.pkg** for Intel and Apple Silicon, macOS 11+. GUI, CLI and daemon all contain native arm64 and x86_64 code. Open the package in Finder and approve the administrator prompt. Use the app's uninstall action for complete removal.
-- **Windows 10/11 x86_64:** **BatteryBridge-windows-x86_64-setup.exe** installs the GUI and a protected SYSTEM background task. No PowerShell setup is needed. Remove through Windows Settings; the uninstaller restores normal charging first.
-- **Linux x86_64:** `.deb` and `.rpm` include the GUI and systemd service. Open the package in a compatible graphical package manager. Debian packages authorize existing `sudo` group members; RPM uses `wheel`. No users are added to groups. Requires systemd and compatible WebKitGTK 4.1 libraries. Package removal disables the daemon and retains configuration for reinstallation.
+The GUI now uses egui and eframe. Selected fastframe modules provide the tray,
+window lifecycle, font fallback and system language detection; macOS also uses
+its Dock visibility helper. System light/dark appearance, all seven languages,
+read-only fallback, charging settings, compatibility reports and graphical macOS
+uninstall remain available. The background service and wire protocol are unchanged.
 
-Updates preserve saved charging settings. The macOS app build is `4`; the Installer receipt is `0.2.0.4`. Install the new package over an earlier release. Developer archives remain available but do not install the background component themselves.
+The app no longer requires Node.js, WebView2 or WebKitGTK. The former local glib
+backport is removed with that dependency graph. The source uses released egui and
+pins fastframe to v0.14.1. GUI builds require Rust 1.98+.
 
-### Intel charge control
+### Installation
 
-Intel Macs now probe compatible SMC interfaces. A readable, valid `BCLM` key enables experimental firmware-managed thresholds from 50% to 100%, with write readback and temporary full charge. BCLM does not provide an adjustable start threshold or forced discharge. Compatible binary gates remain an experimental fallback. Unsupported hardware retains battery monitoring and reports capabilities explicitly.
+- **macOS 11+:** one universal `.pkg` includes Intel and Apple Silicon GUI, CLI and daemon. Bundle build 5; Installer receipt 0.3.0.5. Install over an existing package to preserve charging settings.
+- **Windows 10/11 x86_64:** NSIS installs the GUI and protected SYSTEM task. Remove through Windows Settings. Normal charging is restored before removal.
+- **Linux x86_64:** native `.deb` and `.rpm` include the app and systemd service, with OpenGL/EGL and X11/Wayland dependencies. Existing sudo/wheel members can control charging. Noto CJK fonts are recommended for Japanese.
 
-Compilation and automated tests on Intel are not validation of charging on every Intel Mac. Physical Intel charging, sleep and firmware behavior still require device-level testing. Apple Silicon binary gates can be reset by firmware during sleep; a closed-lid percentage cap is not guaranteed. Lenovo WMI charge control remains experimental and fixed at 80%.
+Developer archives contain the native GUI executable and system integration
+resources. macOS and Windows installers are unsigned; macOS is not notarized.
+`SHA256SUMS.txt` covers every downloadable package and archive.
 
-### Linux dependency security
+### Hardware boundaries
 
-The Linux GUI includes the upstream memory-safety fix for glib's `VariantStrIter`
-(GHSA-wrw7-89jp-8q8g / RUSTSEC-2024-0429) through a documented source override.
-Tauri 2 still depends on glib 0.18.5, so the version number is unchanged and
-version-only scanners may continue to flag it. The optimized iterator regression
-runs in Linux CI. macOS and Windows do not use this GTK dependency.
-
-### Distribution
-
-Windows and macOS installers are unsigned; macOS is not notarized. Review origin and platform security prompts. Do not disable Gatekeeper or other system protections. Managed devices may prohibit unsigned installation.
-
-`SHA256SUMS.txt` covers all downloadable assets. The README lists direct links for each installer and developer archive.
+Charging capabilities remain hardware-dependent. Intel SMC and Apple Silicon
+SMC control, and Lenovo WMI conservation mode, remain experimental. A GUI change
+does not change sleep behavior: Apple Silicon firmware may reset the charging
+gate while asleep, so a closed-lid percentage limit is not guaranteed.

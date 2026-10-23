@@ -3,12 +3,9 @@
 $ErrorActionPreference = 'Stop'
 $work = Join-Path $env:RUNNER_TEMP 'batterybridge-nsis-test'
 New-Item -ItemType Directory -Force $work | Out-Null
-$zip = Join-Path $work 'nsis.zip'
-Invoke-WebRequest 'https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.13/nsis-3.13.zip' -OutFile $zip
-# Same toolchain and digest as the project's Tauri bundler 2.10.4.
-if ((Get-FileHash $zip -Algorithm SHA1).Hash -ne 'DB14F8AF2EA346B786C6AE19343F61AAF5E09B8E') { throw 'NSIS digest mismatch' }
-Expand-Archive $zip (Join-Path $work 'toolchain')
-$compiler = Get-ChildItem "$work/toolchain" -Filter makensis.exe -Recurse | Select-Object -First 1
+python ./packaging/windows/build.py --prepare-tools
+if ($LASTEXITCODE -ne 0) { throw 'Could not prepare NSIS toolchain' }
+$compiler = Get-Item target/tools/nsis-3.13/makensis.exe
 $hooks = (Resolve-Path "$PSScriptRoot/installer-hooks.nsh").Path
 $output = Join-Path $work 'prepare.exe'
 @"

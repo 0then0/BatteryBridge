@@ -23,10 +23,8 @@ rustc-ice-*.txt
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# Frontend / Tauri generated files
+# Local dependency and desktop build caches
 node_modules/
-apps/gui/dist/
-apps/gui/src-tauri/gen/
 .DS_Store
 
 # Local browser verification artifacts
@@ -34,3 +32,6 @@ apps/gui/src-tauri/gen/
 
 # Python installer tooling
 __pycache__/
+
+# Legacy frontend build cache
+/apps/gui/dist/

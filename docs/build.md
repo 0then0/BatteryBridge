@@ -4,22 +4,25 @@
 
 ## Requirements
 
-Use stable Rust 1.90 or newer. CLI and service builds require a native toolchain for the target operating system, but do not require Node.js or a WebView.
+CLI and service builds require stable Rust 1.90 or newer and a native toolchain.
+The desktop GUI requires Rust 1.98 or newer. CI uses stable Rust. The app uses
+`egui` and `eframe` with selected fastframe modules; Node.js and a WebView are
+not required.
 
-Desktop builds additionally require Node.js 22.12 or newer, npm and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/). CI uses Node.js 24. On Windows, use the MSVC toolchain and install the C++ build tools and WebView2 requirements described by Tauri. On macOS, install Xcode Command Line Tools.
-
-On Ubuntu 24.04, the desktop dependencies can be installed with:
+On macOS, install Xcode Command Line Tools. On Windows, use the Rust MSVC toolchain
+with the C++ build tools and Windows SDK. On Ubuntu 24.04, install the native
+graphics libraries:
 
 ```sh
 sudo apt-get update
-sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
+sudo apt-get install -y libxkbcommon-dev libwayland-dev libgl1-mesa-dev libegl1-mesa-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev fonts-noto-cjk
 ```
 
-Use the committed Cargo and npm lockfiles for reproducible dependency resolution.
+Use the committed `Cargo.lock`. fastframe modules are pinned to release `v0.14.1`
+and its resolved Git commit in the lockfile. The app uses released egui/eframe
+0.36.2 without upstream forks. Native package builders require Python 3.9+.
 
 ## CLI and service
-
-Run from the repository root:
 
 ```sh
 cargo build --release --locked
@@ -27,23 +30,38 @@ cargo build --release --locked
 ./target/release/batterybridge status
 ```
 
-The default workspace members produce `batterybridge` and `batterybridge-service` in `target/release`. Windows binaries have an `.exe` suffix. A build does not install the service; follow [service installation](service.md) when you are ready to enable charging control.
+The default workspace members produce `batterybridge` and
+`batterybridge-service`. Windows executables have an `.exe` suffix. Building does
+not install or start the service; see [service installation](service.md).
 
 ## Desktop application
 
-Run from the repository root:
-
 ```sh
-cd apps/gui
-npm ci
-npm run tauri -- build --features desktop
+cargo run -p batterybridge-gui --locked
+cargo build -p batterybridge-gui --release --locked
 ```
 
-Tauri builds the frontend, embeds it in the application and creates platform bundles under `target/release/bundle`. On macOS, the application is under `target/release/bundle/macos/BatteryBridge.app`. Local bundles are unsigned unless signing is configured separately.
+The binary is `target/release/batterybridge-gui` (`.exe` on Windows). The GUI
+uses the same ordinary-user IPC client as the CLI. Closing its window leaves the
+tray available when the desktop has a tray host; choosing Quit exits the GUI.
+Charging policy remains in the independent service. Without a tray host, closing
+the window exits instead of leaving an unreachable process.
 
-### macOS installer package
+The interface follows the system theme. Existing JSON catalogs cover English,
+Russian, Spanish, German, French, Japanese and Brazilian Portuguese.
+fastframe-fonts bundles Inter and finds installed fallback fonts. Install a CJK
+font package for Japanese on Linux; the native packages recommend Noto CJK.
 
-On a macOS build host, install both Rust targets and build the universal GUI, CLI and daemon:
+## Native installers
+
+Build CLI, service and GUI before packaging:
+
+```sh
+cargo build --workspace --release --locked
+```
+
+On macOS, the universal builder compiles all three binaries for both architectures,
+merges them, creates the `.app` and applies an ad-hoc application signature:
 
 ```sh
 rustup target add aarch64-apple-darwin x86_64-apple-darwin
@@ -51,23 +69,51 @@ python3 packaging/macos/build-universal.py
 python3 packaging/macos/build-pkg.py --output target/BatteryBridge-macos-universal.pkg
 ```
 
-The package builder verifies both architectures in every executable and refuses a single-architecture payload. Universal output is in `target/universal-apple-darwin/release`. Native source builds remain useful for development but cannot be passed to this universal package builder.
+The output is under `target/universal-apple-darwin/release`. The package builder
+refuses a payload missing either architecture. The Installer package is unsigned
+and the app is not notarized.
 
-Windows installer build (after `cargo build --release --locked`), from `apps/gui`:
+On Windows:
 
-```sh
-npm run tauri -- build --features desktop --config ../../packaging/windows/tauri.installer.conf.json
+```powershell
+python packaging/windows/build.py
 ```
 
-On Linux, use `../../packaging/linux/tauri.deb.conf.json` or `tauri.rpm.conf.json` instead. These configs include the release CLI and daemon, so build them before bundling. Install/uninstall integration tests run only on disposable CI machines; do not execute the `test-installer` scripts on your personal system.
+The builder downloads the pinned NSIS 3.13 toolchain and verifies its SHA-256
+before extraction. Output is under `target/release/bundle/nsis`. The installer
+retains the protected SYSTEM task, administrator prompt and charging restoration
+on removal.
 
-## Checks
-
-See [Contributing](../CONTRIBUTING.md#local-checks) for the complete frontend and Rust checks. Changes to documentation can also be checked against the CLI's help output and generated Rust API documentation:
+On Linux, install `dpkg-deb` for Debian packages and `rpmbuild` for RPM packages
+(the Ubuntu package is `rpm`), then run:
 
 ```sh
-cargo run -p batterybridge-cli --locked -- --help
-cargo doc --workspace --all-features --no-deps --locked
+python3 packaging/linux/build.py deb
+python3 packaging/linux/build.py rpm
 ```
 
-Building Rust documentation with desktop features requires the built frontend, just like other direct Cargo desktop builds.
+Outputs are under `target/release/bundle/deb` and `rpm`. Packages contain the GUI,
+CLI, service, systemd unit, desktop entry, icons and license notices. They require
+native OpenGL/EGL and X11/Wayland libraries. Developer archives contain the GUI
+binary; they require these system libraries too.
+
+## Checks and safe previews
+
+```sh
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+cargo test --workspace --all-features --locked
+python3 -m unittest discover -s packaging/tests -v
+python3 -m unittest discover -s packaging/macos/tests -v
+```
+
+GUI tests exercise translations, font coverage, narrow/wide layouts, read-only
+state, editable settings and limit warnings. A synthetic preview performs no IPC
+or hardware operations:
+
+```sh
+cargo run -p batterybridge-gui --locked -- --preview apps/gui/tests/status.json --language ru
+```
+
+Install/uninstall integration scripts run only on disposable CI machines. Do not
+run `test-installer` or `test-preinstall` scripts on your personal system.

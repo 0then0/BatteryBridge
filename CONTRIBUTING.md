@@ -10,25 +10,20 @@ Remove personal identifiers from logs and reports. Include device model and rele
 
 ## Development setup
 
-Follow [building from source](docs/build.md). Use the committed Cargo and npm lockfiles. Rust 1.90 or newer is required; CI uses stable Rust and Node.js 24. The desktop app also requires Tauri's platform dependencies.
+Follow [building from source](docs/build.md). Use the committed Cargo lockfile. CLI and service require Rust 1.90+; the native desktop app requires Rust 1.98+ and the graphics prerequisites in the build guide.
 
 ## Local checks
 
-From the repository root, prepare and check the frontend first:
+From the repository root:
 
 ```sh
-cd apps/gui
-npm ci
-npm run check
-npm run build
-cd ../..
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-features --locked
 cargo build --workspace --all-features --locked
 ```
 
-`npm run check` runs Biome and SVG accessibility checks. Use `npm run check:fix` in `apps/gui` to apply safe fixes, and `cargo fmt --all` from the root to format Rust. Inspect formatting changes before committing. Git attributes keep text files in LF format on all platforms.
+Use `cargo fmt --all` to format Rust. GUI tests check the seven translation catalogs, font coverage, layout widths, draft settings and policy warnings. Run packaging checks with `python3 -m unittest discover -s packaging/tests -v`; on macOS, also run `python3 -m unittest discover -s packaging/macos/tests -v`. Inspect changes before committing. Git attributes keep text files in LF format on all platforms.
 
 For CLI/service work without desktop prerequisites, check the default workspace members:
 
@@ -38,7 +33,7 @@ cargo test --locked
 cargo build --locked
 ```
 
-Tests use synthetic facts, fake controllers and temporary files. Normal CI does not write battery controls or install services. Windows CI additionally checks installer ACL behavior using disposable directories.
+Tests use synthetic facts, fake controllers and temporary files. Normal tests do not write battery controls or install services. Windows CI additionally checks installer ACL behavior and native preparation in its disposable VM. The release workflow tests installation and removal only on disposable CI machines.
 
 ## Add a backend
 

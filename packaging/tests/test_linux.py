@@ -1,11 +1,15 @@
 """Test package lifecycle hooks with fake systemd and IPC, never the host daemon."""
-import json
+import importlib.util
+import sys
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
 
 HERE = Path(__file__).resolve().parents[1] / 'linux'
+spec = importlib.util.spec_from_file_location('linux_builder', HERE / 'build.py')
+builder = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(builder)
 
 
 class LinuxPackageTests(unittest.TestCase):
@@ -69,8 +73,21 @@ class LinuxPackageTests(unittest.TestCase):
 
     def test_package_contents_use_system_paths_and_administrator_groups(self):
         for package, group in [('deb', 'sudo'), ('rpm', 'wheel')]:
-            config = json.loads((HERE / f'tauri.{package}.conf.json').read_text())['bundle']['linux'][package]
-            self.assertIn('/usr/bin/batterybridge-service', config['files'])
+            with tempfile.TemporaryDirectory() as temporary:
+                build = Path(temporary) / 'build'
+                build.mkdir()
+                for name in ('batterybridge', 'batterybridge-service', 'batterybridge-gui'):
+                    (build / name).write_text('fixture')
+                payload = Path(temporary) / 'payload'
+                builder.stage(payload, build, package)
+                daemon = payload / 'usr/bin/batterybridge-service'
+                self.assertEqual(daemon.stat().st_mode & 0o777, 0o755)
+                self.assertTrue((payload / 'usr/share/applications/BatteryBridge.desktop').is_file())
+                self.assertTrue((payload / 'usr/share/licenses/batterybridge/Inter-OFL.txt').is_file())
+                self.assertEqual((payload / 'usr/lib/systemd/system/batterybridge.service').read_text(), (HERE / f'{package}.service').read_text())
+            dependencies = builder.DEB_DEPENDS if package == 'deb' else builder.RPM_DEPENDS
+            self.assertNotIn('webkit', ' '.join(dependencies))
+            self.assertNotIn('libgtk', ' '.join(dependencies))
             unit = (HERE / f'{package}.service').read_text()
             self.assertIn(f'Group={group}', unit)
             self.assertIn('ExecStart=/usr/bin/batterybridge-service', unit)

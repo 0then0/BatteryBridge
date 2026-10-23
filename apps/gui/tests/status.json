@@ -1,0 +1,59 @@
+{
+  "batteries": [
+    {
+      "id": "BAT0",
+      "percent": 86,
+      "state": "Charging",
+      "on_ac": true,
+      "health_percent": null,
+      "hardware_start": null,
+      "hardware_stop": null
+    }
+  ],
+  "device": {
+    "os": "macos",
+    "os_version": "preview",
+    "architecture": "arm64",
+    "vendor": "Apple",
+    "model": "Preview device"
+  },
+  "backend": "Apple Silicon SMC",
+  "capabilities": {
+    "charge_limit": {
+      "state": "experimental",
+      "reason": "SMC binary gate; daemon enforces hysteresis while awake; firmware may deny writes"
+    },
+    "start_threshold": {
+      "state": "experimental",
+      "reason": "SMC binary gate; daemon enforces hysteresis while awake; firmware may deny writes"
+    },
+    "stop_threshold": {
+      "state": "experimental",
+      "reason": "SMC binary gate; daemon enforces hysteresis while awake; firmware may deny writes"
+    },
+    "force_discharge": {
+      "state": "unsupported",
+      "reason": "no compatible charge-control interface detected"
+    },
+    "adapter_disable": {
+      "state": "unsupported",
+      "reason": "no compatible charge-control interface detected"
+    },
+    "temporary_full_charge": {
+      "state": "experimental",
+      "reason": "daemon temporarily releases gate until full"
+    },
+    "allowed_limits": null
+  },
+  "config": {
+    "version": 1,
+    "charge_limit": 80,
+    "start_threshold": {
+      "enabled": false,
+      "value": 75
+    }
+  },
+  "top_up_active": false,
+  "discharge_target": null,
+  "last_error": null
+}

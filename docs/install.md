@@ -2,6 +2,11 @@
 
 [Documentation index](README.md)
 
+The published 0.2.0 installers use the previous GUI. The source tree prepares
+0.3.0 with egui/eframe and preserves the installation paths and service policy.
+Instructions below cover the native installers; the 0.2.0 Linux GUI additionally
+requires WebKitGTK 4.1 and its Windows installer may install WebView2.
+
 ## macOS
 
 The graphical installer supports Intel and Apple Silicon Macs running macOS 11 or newer. It installs both the desktop app and the charging service. No Terminal commands are required.
@@ -25,7 +30,7 @@ Moving the app to Trash alone leaves the background service installed. Version 0
 
 ## Windows
 
-Download **BatteryBridge-windows-x86_64-setup.exe**, open it in Explorer and approve UAC. The installer places the app in **Program Files → BatteryBridge**, creates application shortcuts, installs a protected background task running as SYSTEM and starts it. WebView2 is installed by the Tauri installer if needed. You do not need an elevated PowerShell window.
+Download **BatteryBridge-windows-x86_64-setup.exe**, open it in Explorer and approve UAC. The installer places the app in **Program Files → BatteryBridge**, creates application shortcuts, installs a protected background task running as SYSTEM and starts it. You do not need an elevated PowerShell window.
 
 The task starts at boot and logon and keeps running after the GUI closes. Existing charging settings are preserved during upgrades. Install in the default Program Files location; custom locations are rejected so that SYSTEM never runs user-writable code.
 
@@ -35,7 +40,7 @@ Remove BatteryBridge through **Settings → Apps → Installed apps**. The unins
 
 ## Linux
 
-Use the `.deb` package on Ubuntu 24.04+ or Debian 13+, or `.rpm` on Fedora 41+ with compatible WebKitGTK 4.1 packages. Open it in your desktop's package manager and approve authentication. Package dependencies must be available from the distribution's repositories. The packages require systemd and WebKitGTK 4.1; minimal/headless distributions without a graphical package manager may still require command-line administration.
+Use the `.deb` package on Ubuntu 24.04+ or Debian 13+, or `.rpm` on Fedora 41+ with compatible OpenGL/EGL and X11/Wayland libraries. Open it in your desktop's package manager and approve authentication. Package dependencies must be available from the distribution's repositories. The source packages require systemd and native graphics libraries; minimal/headless distributions without a graphical package manager may still require command-line administration.
 
 The package installs the GUI, CLI, daemon and systemd unit, enables the service at boot and starts it immediately. For package installations, existing members of `sudo` (Debian/Ubuntu) or `wheel` (RPM) can change charging settings without running the GUI as root. Other users can inspect battery status through the read-only fallback. The package does not add users to administrator groups or grant world-writable access. Manual source installation retains its separate `batterybridge` group policy.
 

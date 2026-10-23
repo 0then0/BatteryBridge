@@ -5,9 +5,10 @@ package=$(find target/release/bundle/deb -name '*.deb' -print -quit)
 [ -n "$package" ]
 name=$(dpkg-deb --field "$package" Package)
 depends=$(dpkg-deb --field "$package" Depends)
-for required in libwebkit2gtk-4.1-0 libgtk-3-0; do
+for required in libegl1 libgl1 libxkbcommon0; do
     case "$depends" in *"$required"*) ;; *) echo "Missing GUI dependency: $required" >&2; exit 1;; esac
 done
+case "$depends" in *webkit*|*libgtk*) echo 'Unexpected WebView dependency' >&2; exit 1;; esac
 sudo dpkg --install "$package"
 # Hosted runners can receive sudo through sudoers without membership in the
 # distribution's administrator group. Exercise the package's actual group policy.

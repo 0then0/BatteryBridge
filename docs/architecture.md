@@ -12,7 +12,7 @@ BatteryBridge separates read-only device discovery, charging policy and privileg
 - `crates/ipc`: framed local communication, platform access controls and connection deadlines.
 - `crates/service`: policy ownership, serialized hardware operations and lifecycle handling.
 - `crates/cli`: the `batterybridge` command-line application.
-- `apps/gui`: React/TypeScript frontend and the Tauri application in `src-tauri`.
+- `apps/gui`: native egui/eframe desktop app and shared JSON translation catalogs.
 - `packaging`: systemd, launchd and Windows Task Scheduler integration.
 - `tests/fixtures`: synthetic device facts used by platform tests.
 
@@ -31,7 +31,9 @@ Monitoring is available independently of controller activation. A laptop can rep
 
 Status and capability reads use local read-only discovery when the service is unavailable. `probe` always runs locally. Configuration reads and mutations require the service. Local discovery does not create a writable controller for the client.
 
-The desktop frontend invokes a Tauri command that uses the same Rust client boundary as the CLI. Hardware access and filesystem permissions stay outside the React application.
+The native desktop app uses the same typed Rust client boundary as the CLI. IPC and export/uninstall work run outside the UI thread. Only one UI operation is in flight at a time; status refreshes preserve unsaved edits. Hidden windows do not poll the service. The independent daemon continues enforcing policy.
+
+The app directly uses fastframe-shell (tray/window lifecycle), fastframe-tray, fastframe-fonts and fastframe-i18n (system language preferences). macOS additionally uses fastframe-dock to retain menu-bar application behavior. eframe supplies system theme following and user preference storage. Existing JSON translations remain the single catalog format for the app and macOS Installer; no gettext conversion or separate UI command protocol is required.
 
 ## Policy lifecycle
 
