@@ -86,6 +86,10 @@ jobs:
           Copy-Item "$build/batterybridge-service$suffix" artifact/
           Copy-Item README.md,LICENSE artifact/
           Copy-Item -Recurse packaging,docs,assets artifact/
+          if ($IsLinux) {
+            New-Item -ItemType Directory -Force artifact/licenses/glib | Out-Null
+            Copy-Item vendor/glib/LICENSE,vendor/glib/COPYRIGHT artifact/licenses/glib/
+          }
           Copy-Item -Recurse "$build/bundle" artifact/gui
           $root = (Resolve-Path artifact).Path
           $hashes = Get-ChildItem artifact -Recurse -File | ForEach-Object {
