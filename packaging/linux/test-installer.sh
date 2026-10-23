@@ -14,9 +14,9 @@ sudo dpkg --install "$package"
 sudo useradd --system --no-create-home --groups sudo bb-test-admin
 sudo useradd --system --no-create-home bb-test-viewer
 trap 'sudo userdel bb-test-admin; sudo userdel bb-test-viewer' EXIT
-stat -c '%U:%G %a %n' /run/batterybridge /run/batterybridge/control.sock
-[ "$(stat -c '%G' /run/batterybridge/control.sock)" = sudo ]
-[ "$(stat -c '%a' /run/batterybridge/control.sock)" = 660 ]
+sudo stat -c '%U:%G %a %n' /run/batterybridge /run/batterybridge/control.sock
+[ "$(sudo stat -c '%G' /run/batterybridge/control.sock)" = sudo ]
+[ "$(sudo stat -c '%a' /run/batterybridge/control.sock)" = 660 ]
 sudo -u bb-test-admin /usr/bin/batterybridge config
 if sudo -u bb-test-viewer /usr/bin/batterybridge config; then
     echo 'Non-administrator unexpectedly accessed the charging service' >&2

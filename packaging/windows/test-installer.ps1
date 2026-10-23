@@ -9,6 +9,11 @@ function Invoke-Installer {
     }
     if ($process.ExitCode -ne 0) { throw "Installer failed ($($process.ExitCode)): $FilePath" }
 }
+# The NSIS runtime is 32-bit. Check which PowerShell can load the task cmdlets.
+foreach ($directory in @('SysWOW64', 'System32')) {
+    Write-Output "ScheduledTasks availability in $directory PowerShell:"
+    & "$env:WINDIR/$directory/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -NonInteractive -Command 'Get-Command Register-ScheduledTask -ErrorAction Stop | Select-Object Name,Source'
+}
 $setup = Get-ChildItem target/release/bundle/nsis/*-setup.exe | Select-Object -First 1
 if (-not $setup) { throw 'NSIS installer missing' }
 try { Invoke-Installer -FilePath $setup.FullName } catch {
