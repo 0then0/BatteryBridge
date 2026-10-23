@@ -43,3 +43,13 @@ Force discharge has a minimum target of 20%. There is no public indefinite adapt
 ## Diagnostic privacy
 
 Compatibility reports use an allowlist of device metadata and interface results. They exclude serials, usernames, network identifiers, installation IDs and raw WMI instance paths. Logs avoid raw provider payloads and identifiers. Review reports and logs before sharing, especially when adding information collected outside BatteryBridge.
+
+## Linux GUI dependency backport
+
+The Linux GUI uses GTK3 through Tauri. Its glib 0.18.5 dependency is affected by
+[GHSA-wrw7-89jp-8q8g](https://github.com/advisories/GHSA-wrw7-89jp-8q8g), an invalid
+output pointer in string-variant iteration that can cause undefined behavior
+under optimization. BatteryBridge uses the upstream fix through a local source
+override; see [provenance and maintenance details](../vendor/README.md). The
+version number remains unchanged, so Dependabot may still report the advisory.
+The macOS and Windows dependency graphs do not use this Linux GTK dependency.

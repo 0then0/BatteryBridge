@@ -27,3 +27,6 @@ tauri-build = { version = "2", optional = true, features = [] }
 name = "batterybridge-gui"
 path = "src/main.rs"
 required-features = ["desktop"]
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+glib = "0.18"

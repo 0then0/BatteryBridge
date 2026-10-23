@@ -33,8 +33,8 @@ Direct downloads for stable release [v0.2.0](https://github.com/0then0/BatteryBr
 | --- | --- | --- | --- |
 | macOS 11+ | Intel + Apple Silicon (universal) | [Installer (.pkg)](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/BatteryBridge-macos-universal.pkg) | App and background service |
 | Windows 10/11 | x86_64 | [Installer (.exe)](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/BatteryBridge-windows-x86_64-setup.exe) | App and SYSTEM background task |
-| Ubuntu 24.04 / compatible Debian systems | x86_64 | [Debian package (.deb)](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/BatteryBridge-linux-x86_64.deb) | App and systemd service; requires the `sudo` group |
-| Fedora / compatible RPM systems | x86_64 | [RPM package (.rpm)](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/BatteryBridge-linux-x86_64.rpm) | App and systemd service; requires the `wheel` group |
+| Ubuntu 24.04+ / Debian 13+ | x86_64 | [Debian package (.deb)](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/BatteryBridge-linux-x86_64.deb) | App and systemd service; requires the `sudo` group |
+| Fedora 41+ / compatible RPM systems | x86_64 | [RPM package (.rpm)](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/BatteryBridge-linux-x86_64.rpm) | App and systemd service; requires the `wheel` group |
 
 Developer archives: [macOS universal](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/batterybridge-macos-universal.tar.gz), [Windows](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/batterybridge-windows-x86_64.zip), [Linux](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/batterybridge-linux-x86_64.tar.gz).
 

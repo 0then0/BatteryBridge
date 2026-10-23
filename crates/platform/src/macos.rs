@@ -66,7 +66,12 @@ pub fn controller() -> Result<Box<dyn ChargeController>> {
     batterybridge_core::policy::require(&platform.report.capabilities.charge_limit)?;
     Ok(Box::new(Controller {
         smc: smc::Smc::open()?,
-        bclm: platform.backend() == "Intel SMC (BCLM)",
+        bclm: platform.device.architecture == "x86_64"
+            && platform
+                .report
+                .interfaces
+                .get("SMC:BCLM")
+                .is_some_and(|value| value == "available"),
         caps: platform.report.capabilities,
     }))
 }

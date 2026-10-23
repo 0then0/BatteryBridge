@@ -1,7 +1,8 @@
 {
   "bundle": {
     "targets": [
-      "deb"
+      "deb",
+      "appimage"
     ],
     "linux": {
       "deb": {
@@ -15,7 +16,8 @@
         "preRemoveScript": "../../../packaging/linux/deb-preremove.sh",
         "postRemoveScript": "../../../packaging/linux/deb-postremove.sh",
         "depends": [
-          "systemd"
+          "systemd",
+          "libc6 (>= 2.39)"
         ]
       }
     }

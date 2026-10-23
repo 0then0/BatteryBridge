@@ -176,3 +176,19 @@ mod tests {
         );
     }
 }
+
+#[cfg(all(test, target_os = "linux"))]
+mod glib_security_tests {
+    #[test]
+    fn glib_variant_strings_backport() {
+        use glib::variant::ToVariant;
+        let variant = ["BatteryBridge", "Русский", "日本語", ""].to_variant();
+        let mut iter = variant.array_iter_str().expect("string array");
+        assert_eq!(iter.next(), Some("BatteryBridge"));
+        assert_eq!(iter.next_back(), Some(""));
+        assert_eq!(iter.next(), Some("Русский"));
+        assert_eq!(iter.next_back(), Some("日本語"));
+        assert_eq!(iter.next(), None);
+        assert_eq!(iter.next_back(), None);
+    }
+}

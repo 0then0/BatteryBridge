@@ -40,6 +40,9 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./packaging/windows/test-permissions.ps1; ./packaging/windows/test-lifecycle.ps1
+      - name: Optimized glib security regression
+        if: runner.os == 'Linux'
+        run: cargo test -p batterybridge-gui --all-features --release --locked glib_variant_strings_backport
       - run: cargo test --workspace --all-features --locked
       - run: cargo build --workspace --all-features --release --locked
         if: runner.os != 'macOS'

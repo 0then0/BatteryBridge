@@ -14,6 +14,14 @@ Intel Macs now probe compatible SMC interfaces. A readable, valid `BCLM` key ena
 
 Compilation and automated tests on Intel are not validation of charging on every Intel Mac. Physical Intel charging, sleep and firmware behavior still require device-level testing. Apple Silicon binary gates can be reset by firmware during sleep; a closed-lid percentage cap is not guaranteed. Lenovo WMI charge control remains experimental and fixed at 80%.
 
+### Linux dependency security
+
+The Linux GUI includes the upstream memory-safety fix for glib's `VariantStrIter`
+(GHSA-wrw7-89jp-8q8g / RUSTSEC-2024-0429) through a documented source override.
+Tauri 2 still depends on glib 0.18.5, so the version number is unchanged and
+version-only scanners may continue to flag it. The optimized iterator regression
+runs in Linux CI. macOS and Windows do not use this GTK dependency.
+
 ### Distribution
 
 Windows and macOS installers are unsigned; macOS is not notarized. Review origin and platform security prompts. Do not disable Gatekeeper or other system protections. Managed devices may prohibit unsigned installation.

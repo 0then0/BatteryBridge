@@ -9,7 +9,7 @@ HERE = Path(__file__).resolve().parents[1] / 'linux'
 
 
 class LinuxPackageTests(unittest.TestCase):
-    def run_hook(self, package, hook, argument, *, cli=0, stop=0, status=0):
+    def run_hook(self, package, hook, argument, *, cli=0, stop=0, status=0, manual=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             trace = root / 'trace'
@@ -18,7 +18,10 @@ class LinuxPackageTests(unittest.TestCase):
                 path.write_text(f'#!/bin/sh\necho "{name} $*" >> "{trace}"\n{body}\n')
                 path.chmod(0o755)
                 return str(path)
+            if manual:
+                (root / 'manual.service').touch()
             replacements = {
+                '/etc/systemd/system/batterybridge.service': str(root / 'manual.service'),
                 'systemctl': command('systemctl', f'case "$1" in stop) exit {stop};; show) echo {status};; esac'),
                 '/usr/bin/batterybridge': command('client', f'exit {cli}'),
                 'sleep 1': command('sleep', 'exit 0'),
@@ -32,6 +35,14 @@ class LinuxPackageTests(unittest.TestCase):
             script.write_text(text)
             result = subprocess.run(['/bin/sh', str(script), argument], capture_output=True, text=True)
             return result, trace.read_text() if trace.exists() else ''
+
+    def test_manual_service_override_is_rejected_before_installation(self):
+        for package in ('deb', 'rpm'):
+            result, _ = self.run_hook(package, 'preinstall', 'install', manual=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('manually installed', result.stderr)
+            result, _ = self.run_hook(package, 'preinstall', 'install')
+            self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_install_starts_and_checks_the_daemon(self):
         for package in ('deb', 'rpm'):

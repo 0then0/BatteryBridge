@@ -29,15 +29,17 @@ Download **BatteryBridge-windows-x86_64-setup.exe**, open it in Explorer and app
 
 The task starts at boot and logon and keeps running after the GUI closes. Existing charging settings are preserved during upgrades. Install in the default Program Files location; custom locations are rejected so that SYSTEM never runs user-writable code.
 
+If you previously installed a GUI-only bundle from a developer archive, remove that GUI-only app before installing the complete setup. Manual installations may leave separate binaries; the native uninstaller only owns files installed by its package.
+
 Remove BatteryBridge through **Settings → Apps → Installed apps**. The uninstaller restores normal charging when a saved limit is enabled, stops and unregisters the task, and removes its settings and binaries. A failed restoration stops removal. The installer is currently unsigned; review the download origin and Windows security prompts. Organization policies may prevent unsigned installation.
 
 ## Linux
 
-Use the `.deb` package on Ubuntu 24.04 or a compatible Debian system, or `.rpm` on a compatible Fedora system. Open it in your desktop's package manager and approve authentication. Package dependencies must be available from the distribution's repositories. The packages require systemd and WebKitGTK 4.1; minimal/headless distributions without a graphical package manager may still require command-line administration.
+Use the `.deb` package on Ubuntu 24.04+ or Debian 13+, or `.rpm` on Fedora 41+ with compatible WebKitGTK 4.1 packages. Open it in your desktop's package manager and approve authentication. Package dependencies must be available from the distribution's repositories. The packages require systemd and WebKitGTK 4.1; minimal/headless distributions without a graphical package manager may still require command-line administration.
 
 The package installs the GUI, CLI, daemon and systemd unit, enables the service at boot and starts it immediately. For package installations, existing members of `sudo` (Debian/Ubuntu) or `wheel` (RPM) can change charging settings without running the GUI as root. Other users can inspect battery status through the read-only fallback. The package does not add users to administrator groups or grant world-writable access. Manual source installation retains its separate `batterybridge` group policy.
 
-Open **BatteryBridge** from your application menu. Remove it through the package manager: the service is stopped with an orderly hardware release, disabled and removed with the executables. Saved configuration in `/var/lib/batterybridge` is retained for reinstallation; it does not run background functions. Updates preserve this configuration and restart the service. Do not install both package formats on the same system.
+Open **BatteryBridge** from your application menu. Remove it through the package manager: the service is stopped with an orderly hardware release, disabled and removed with the executables. Saved configuration in `/var/lib/batterybridge` is retained for reinstallation; it does not run background functions. Updates preserve this configuration and restart the service. Do not install both package formats on the same system. A manually installed unit at `/etc/systemd/system/batterybridge.service` overrides the packaged unit; the installer refuses this combination. Stop and remove that manual unit first using the service guide, then install the native package. Saved configuration is reused.
 
 ## Developer archives
 

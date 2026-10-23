@@ -44,5 +44,8 @@ jobs:
         if: runner.os == 'macOS'
         run: python3 -m unittest discover -s packaging/macos/tests -v
       - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+      - name: Optimized glib security regression
+        if: runner.os == 'Linux'
+        run: cargo test -p batterybridge-gui --all-features --release --locked glib_variant_strings_backport
       - run: cargo test --workspace --all-features --locked
       - run: cargo build --workspace --all-features --locked

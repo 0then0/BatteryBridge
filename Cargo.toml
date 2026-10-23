@@ -2,6 +2,7 @@
 members = ["crates/*", "apps/gui/src-tauri"]
 default-members = ["crates/protocol", "crates/core", "crates/platform", "crates/ipc", "crates/service", "crates/cli"]
 resolver = "2"
+exclude = ["vendor/glib"]
 
 [workspace.package]
 version = "0.2.0"
@@ -28,3 +29,7 @@ batterybridge-ipc = { path = "crates/ipc" }
 lto = "thin"
 strip = true
 codegen-units = 1
+
+# GTK3 still requires glib 0.18; retain the upstream memory-safety backport.
+[patch.crates-io]
+glib = { path = "vendor/glib" }
