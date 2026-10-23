@@ -41,6 +41,17 @@ npm run tauri -- build --features desktop
 
 Tauri builds the frontend, embeds it in the application and creates platform bundles under `target/release/bundle`. On macOS, the application is under `target/release/bundle/macos/BatteryBridge.app`. Local bundles are unsigned unless signing is configured separately.
 
+### macOS installer package
+
+On an Apple Silicon Mac, first build the release CLI and service from the repository root with `cargo build --release --locked`, then build the desktop bundle with `npm --prefix apps/gui run tauri -- build --features desktop --bundles app`. Package all three components together:
+
+```sh
+python3 -m unittest discover -s packaging/macos/tests -v
+python3 packaging/macos/build-pkg.py --output target/release/BatteryBridge-macos-apple-silicon.pkg
+```
+
+The builder uses macOS `pkgbuild`, `productbuild` and `lipo`. It does not install or start the service on the build machine. The output is an unsigned graphical installer for the current system volume, with root-owned privileged helpers and a non-relocatable app in Applications. Use Developer ID signing and notarization before general public distribution.
+
 ### Standalone debug binary
 
 ```sh

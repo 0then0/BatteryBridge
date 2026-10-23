@@ -15,7 +15,7 @@ jobs:
             label: linux-x86_64
           - os: windows-latest
             label: windows-x86_64
-          - os: macos-14
+          - os: macos-latest
             label: macos-aarch64
     runs-on: ${{ matrix.os }}
     steps:
@@ -29,13 +29,21 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
       - run: npm ci
         working-directory: apps/gui
+      - run: npm run check
+        working-directory: apps/gui
       - run: npm run build
         working-directory: apps/gui
-      - run: cargo test --workspace --locked
+      - run: cargo test --workspace --all-features --locked
       - run: cargo build --workspace --all-features --release --locked
       - name: Build unsigned desktop bundle
         run: npm run tauri -- build --features desktop
         working-directory: apps/gui
+      - name: Build macOS graphical installer with charging service
+        if: runner.os == 'macOS'
+        run: |
+          python3 -m unittest discover -s packaging/macos/tests -v
+          python3 packaging/macos/build-pkg.py --output target/release/BatteryBridge-macos-apple-silicon.pkg
+          pkgutil --check-signature target/release/BatteryBridge-macos-apple-silicon.pkg || test "$?" -eq 1
       - name: Stage CLI, daemon, service definitions and license
         shell: pwsh
         run: |
@@ -66,3 +74,33 @@ jobs:
             batterybridge-*.zip
             batterybridge-*.tar.gz
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'macOS'
+        with:
+          name: macos-installer
+          path: target/release/BatteryBridge-macos-apple-silicon.pkg
+          if-no-files-found: error
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Publish release and checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          cd release-assets
+          sha256sum -- * > SHA256SUMS.txt
+          args=()
+          if [[ "$TAG" == *-* ]]; then args+=(--prerelease); fi
+          gh release create "$TAG" --verify-tag --title "BatteryBridge $TAG" \
+            --notes-file ../packaging/macos/RELEASE.md "${args[@]}" -- *

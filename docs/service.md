@@ -45,6 +45,8 @@ Configuration and executables remain available for reuse or separate removal.
 
 ## macOS: launchd
 
+For the graphical developer preview, use the [macOS installer](install.md). It installs the app and service together. The commands below are for manual source installations; do not run them over a packaged installation.
+
 Apple Silicon control uses privileged private SMC operations. Members of the local `admin` group can send charging commands over IPC. The app bundle does not install the service.
 
 Run from the repository root:
@@ -77,6 +79,22 @@ sudo rm /Library/LaunchDaemons/io.github.batterybridge.plist
 ```
 
 The launcher, executables and configuration remain until removed separately. Use orderly service shutdown while adapter isolation is active.
+
+### Remove the packaged macOS service
+
+First select **Turn off** in the app and verify that normal charging resumes. Quit BatteryBridge from its tray menu. Administrators can then remove the packaged service and app:
+
+```sh
+sudo launchctl bootout system /Library/LaunchDaemons/io.github.batterybridge.plist
+sudo rm /Library/LaunchDaemons/io.github.batterybridge.plist
+sudo rm /Library/PrivilegedHelperTools/io.github.batterybridge.service
+sudo rm /Library/PrivilegedHelperTools/io.github.batterybridge.cli
+sudo rm /Library/PrivilegedHelperTools/io.github.batterybridge.launcher
+sudo rm -rf /Applications/BatteryBridge.app
+sudo pkgutil --forget io.github.batterybridge.installer
+```
+
+The package stores its executables in root-owned `/Library/PrivilegedHelperTools`, independently of a user's source checkout or `/usr/local/bin`. Settings remain in `/Library/Application Support/BatteryBridge/config.toml` for reuse. Removing the GUI alone does not unload the service. The packaged installer preserves the same `admin` IPC access policy as manual installation.
 
 ## Windows: Task Scheduler
 

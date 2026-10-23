@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+
+/usr/bin/install -d -o root -g wheel -m 0700 '/Library/Application Support/BatteryBridge'
+/usr/bin/install -d -o root -g admin -m 0750 /var/run/batterybridge
+/bin/launchctl bootstrap system /Library/LaunchDaemons/io.github.batterybridge.plist
+
+# Config has no offline fallback: success proves that the installed service can
+# answer IPC requests, rather than merely being registered with launchd.
+attempt=0
+until /Library/PrivilegedHelperTools/io.github.batterybridge.cli config >/dev/null 2>&1; do
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge 10 ]; then
+        echo 'BatteryBridge service did not respond. See /var/log/batterybridge.log.' >&2
+        exit 1
+    fi
+    /bin/sleep 1
+done

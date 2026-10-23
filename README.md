@@ -24,6 +24,12 @@ Available controls depend on your laptop's kernel driver, firmware and vendor in
 
 ## Getting started
 
+On an Apple Silicon Mac, download **BatteryBridge-macos-apple-silicon.pkg** from [Releases](https://github.com/0then0/BatteryBridge/releases). Open it in Finder, complete installation and open **Applications → BatteryBridge**. The package installs and starts the charging service; Terminal is not required. See [installation](docs/install.md) for unsigned-preview prompts, account requirements and supported systems.
+
+Windows and Linux previews are developer archives with separate service setup.
+
+### Build from source
+
 Build the CLI and service with Rust 1.90 or newer:
 
 ```sh
@@ -57,7 +63,7 @@ npm ci
 npm run tauri -- build --features desktop
 ```
 
-The resulting app uses an embedded frontend. It does not require a web server on port 1420. The service is installed separately; without it, the app shows battery information in read-only mode.
+The resulting app uses an embedded frontend. It does not require a web server on port 1420. A source-built app needs separate service setup; the macOS `.pkg` includes the service. Without service access, the app shows battery information in read-only mode.
 
 See [building from source](docs/build.md) for bundle locations, development mode and standalone debug builds.
 

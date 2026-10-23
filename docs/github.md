@@ -28,11 +28,13 @@ The release workflow runs for `v*` tags or through manual workflow dispatch. It 
 - Documentation, license and icon assets.
 - `SHA256SUMS.txt` with hashes for the staged files.
 
-Download an artifact from the completed workflow run and extract its archive. GitHub may require sign-in to download workflow artifacts. Desktop bundles are unsigned unless signing is configured separately. Service installation remains a separate administrator action.
+Download an artifact from the completed workflow run and extract its archive. GitHub may require sign-in to download workflow artifacts. Desktop bundles are unsigned unless signing is configured separately. The additional `macos-installer` artifact contains a graphical `.pkg` with the app and charging service. Windows and Linux archives still require separate service installation.
 
 ## Prepare a release
 
-Maintainers should verify the selected commit's CI results, update versions and release notes, and review the compatibility information before creating a version tag. The release workflow uploads build artifacts; publication to GitHub Releases is a separate step.
+Maintainers should verify the selected commit's CI results, review release notes in `packaging/macos/RELEASE.md` and compatibility information before creating a version tag. Pushing a `v*` tag builds all three platforms and publishes a GitHub Release only after every build succeeds. Tags containing a hyphen, such as `v0.1.0-dev.1`, create pre-releases. Manual workflow dispatch builds artifacts without publishing.
+
+The first dev tag uses application version `0.1.0` and Installer receipt version `0.1.0.1`. The dev suffix identifies the release channel. Increment the receipt version for subsequent package updates using the builder's `--version` argument; keep the workflow and release tag consistent. Release assets include an outer `SHA256SUMS.txt` covering each downloadable package/archive.
 
 Version numbers are declared in the root `Cargo.toml`, `apps/gui/package.json` and `apps/gui/src-tauri/tauri.conf.json`. Keep the corresponding lockfile metadata consistent when preparing a release.
 

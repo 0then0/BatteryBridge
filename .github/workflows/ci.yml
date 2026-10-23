@@ -33,6 +33,9 @@ jobs:
         shell: pwsh
         run: ./packaging/windows/test-permissions.ps1
       - run: cargo fmt --all --check
+      - name: macOS installer regression checks
+        if: runner.os == 'macOS'
+        run: python3 -m unittest discover -s packaging/macos/tests -v
       - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - run: cargo test --workspace --all-features --locked
       - run: cargo build --workspace --all-features --locked

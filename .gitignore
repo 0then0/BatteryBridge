@@ -31,3 +31,6 @@ apps/gui/src-tauri/gen/
 
 # Local browser verification artifacts
 .playwright-mcp/
+
+# Python installer tooling
+__pycache__/

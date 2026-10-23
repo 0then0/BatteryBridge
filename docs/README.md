@@ -4,6 +4,8 @@ BatteryBridge separates battery monitoring from charging control. You can inspec
 
 ## Start here
 
+For graphical macOS installation, start with [Install the developer preview](install.md). For source builds and developer archives:
+
 1. [Build BatteryBridge](build.md) or use an available platform build.
 2. Read [hardware compatibility](hardware.md) and run `batterybridge capabilities`.
 3. [Install the service](service.md) if you want to change charging settings.
