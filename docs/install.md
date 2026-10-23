@@ -7,6 +7,10 @@ The published 0.2.0 installers use the previous GUI. The source tree prepares
 Instructions below cover the native installers; the 0.2.0 Linux GUI additionally
 requires WebKitGTK 4.1 and its Windows installer may install WebView2.
 
+When upgrading from 0.2.0 to the native GUI, select your preferred language again
+if it differs from the system language. The old WebView preference is not imported;
+the service keeps its saved charging settings.
+
 ## macOS
 
 The graphical installer supports Intel and Apple Silicon Macs running macOS 11 or newer. It installs both the desktop app and the charging service. No Terminal commands are required.
