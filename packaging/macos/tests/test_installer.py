@@ -3,6 +3,7 @@
 import importlib.util
 import plistlib
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -28,12 +29,12 @@ class InstallerTests(unittest.TestCase):
         return str(path)
 
     def run_script(self, name, *, mode="755", owner="0", bootstrap=0,
-                   config=0, volume="/", link=False):
+                   config=0, volume="/", link=False, bootout=0):
         # All commands that can touch the host are replaced. Never run installer
         # scripts directly in a test: they are intended to run as root.
         text = (HERE / "scripts" / name).read_text()
         replacements = {
-            "/bin/launchctl": self.command("launchctl", f'exit {bootstrap}'),
+            "/bin/launchctl": self.command("launchctl", f'case "$1" in bootstrap) exit {bootstrap};; bootout) exit {bootout};; *) exit 0;; esac'),
             "/usr/bin/pkill": self.command("pkill", "exit 1"),
             "/usr/bin/install": self.command("install", "exit 0"),
             "/bin/sleep": self.command("sleep", "exit 0"),
@@ -110,6 +111,11 @@ class InstallerTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(self.trace.exists())
 
+    def test_preinstall_aborts_when_existing_service_cannot_stop(self):
+        result = self.run_script("preinstall", bootout=1)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("pkill", self.trace.read_text())
+
     def test_postinstall_waits_for_live_config_ipc(self):
         result = self.run_script("postinstall")
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -125,6 +131,26 @@ class InstallerTests(unittest.TestCase):
         result = self.run_script("postinstall", bootstrap=1)
         self.assertNotEqual(result.returncode, 0)
         self.assertNotIn("client config", self.trace.read_text())
+
+    @unittest.skipUnless(sys.platform == "darwin" and
+                         (builder.REPO / "target/release/bundle/macos/BatteryBridge.app").exists(),
+                         "requires a macOS release build")
+    def test_real_package_build_and_expand_without_installation(self):
+        output = self.root / "BatteryBridge.pkg"
+        subprocess.run([sys.executable, str(HERE / "build-pkg.py"), "--output", str(output)],
+                       check=True, capture_output=True, text=True)
+        expanded = self.root / "expanded"
+        subprocess.run(["pkgutil", "--expand-full", str(output), str(expanded)], check=True)
+        component = expanded / "component.pkg"
+        info = ET.parse(component / "PackageInfo").getroot()
+        self.assertEqual(info.get("auth"), "root")
+        self.assertEqual(info.get("relocatable"), "false")
+        self.assertIsNotNone(info.find("scripts/preinstall"))
+        self.assertIsNotNone(info.find("scripts/postinstall"))
+        self.assertEqual(len(info.find("relocate")), 0)
+        bom = subprocess.check_output(["lsbom", str(component / "Bom")], text=True)
+        self.assertIn("./Library/PrivilegedHelperTools/io.github.batterybridge.service\t100755\t0/0", bom)
+        self.assertIn("./Library/LaunchDaemons/io.github.batterybridge.plist\t100644\t0/0", bom)
 
 
 if __name__ == "__main__":

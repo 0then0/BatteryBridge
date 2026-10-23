@@ -80,7 +80,7 @@ def main():
         stage_payload(payload, args.build_dir.resolve())
         for binary in (payload / HELPERS / CLIENT, payload / HELPERS / SERVICE,
                        payload / "Applications/BatteryBridge.app/Contents/MacOS/batterybridge-gui"):
-            subprocess.run(["lipo", "-verify_arch", "arm64", str(binary)], check=True)
+            subprocess.run(["lipo", str(binary), "-verify_arch", "arm64"], check=True)
         # Do not let Installer relocate this app to a developer's existing build.
         components = work / "components.plist"
         subprocess.run(["pkgbuild", "--analyze", "--root", str(payload), str(components)], check=True)
