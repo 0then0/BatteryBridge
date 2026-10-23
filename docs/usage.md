@@ -71,3 +71,11 @@ The `--json` option also works with `status`, `capabilities` and `config`. Incre
 ## When a command fails
 
 An unsupported feature includes a reason in the capabilities output. If policy is unavailable, check the service and your local access permissions using the [installation and recovery guide](service.md#troubleshooting). Permission and hardware errors can also come from firmware or a missing vendor driver; a successful read-only probe does not establish write access.
+
+## Desktop language
+
+The app supports English (`en`), Russian (`ru`), Spanish (`es`), German (`de`), French (`fr`), Japanese (`ja`) and Brazilian Portuguese (`pt-BR`). The initial choice follows the first supported language in the system preferences, with English as the fallback. Portuguese regional preferences use the Brazilian translation.
+
+Use **Language** at the bottom of the window to override the system choice. The language names are written in their own languages. The preference is saved locally and changing it does not apply, discard or reset charging inputs. Choose **System default** to return to automatic selection. Theme selection always follows the system independently of language.
+
+Labels, battery states, capability explanations, app notices and tray actions are translated. The macOS Installer welcome and completion pages use the system language, independently of the app's saved choice. CLI output, compatibility JSON and unknown OS/firmware diagnostic details retain their original text and field names for support and automation.

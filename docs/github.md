@@ -34,7 +34,7 @@ Download an artifact from the completed workflow run and extract its archive. Gi
 
 Maintainers should verify the selected commit's CI results, review release notes in `packaging/macos/RELEASE.md` and compatibility information before creating a version tag. Pushing a `v*` tag builds all three platforms and publishes a GitHub Release only after every build succeeds. Tags containing a hyphen, such as `v0.1.0-dev.1`, create pre-releases. Manual workflow dispatch builds artifacts without publishing.
 
-The first dev tag uses application version `0.1.0` and Installer receipt version `0.1.0.1`. The dev suffix identifies the release channel. Increment the receipt version for subsequent package updates using the builder's `--version` argument; keep the workflow and release tag consistent. Release assets include an outer `SHA256SUMS.txt` covering each downloadable package/archive.
+Release `v0.1.0` uses application version `0.1.0`, macOS bundle build `2` and Installer receipt version `0.1.0.2`, which upgrades the first preview receipt `0.1.0.1`. The `v0.1.0-dev.1` tag remains available as a pre-release. Increment the receipt version for subsequent package updates using the builder's `--version` argument; keep the workflow and release tag consistent. Release assets include an outer `SHA256SUMS.txt` covering each downloadable package/archive.
 
 Version numbers are declared in the root `Cargo.toml`, `apps/gui/package.json` and `apps/gui/src-tauri/tauri.conf.json`. Keep the corresponding lockfile metadata consistent when preparing a release.
 

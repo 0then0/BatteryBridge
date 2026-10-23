@@ -6,13 +6,51 @@ import {
   describeError,
   request,
   type Snapshot,
+  setTrayLanguage,
 } from "./api";
+import {
+  batteryState,
+  capabilityReason,
+  isLanguageChoice,
+  type LanguageChoice,
+  languageNames,
+  languageStorageKey,
+  readLanguage,
+  resolveLocale,
+  translate,
+} from "./i18n";
 import "./style.css";
 
 function App() {
+  const [language, setLanguage] = useState<LanguageChoice>(() => {
+    try {
+      return readLanguage(window.localStorage);
+    } catch {
+      return "system";
+    }
+  });
+  const [systemLanguages, setSystemLanguages] = useState(
+    () => navigator.languages,
+  );
+  const locale = resolveLocale(language, systemLanguages);
+  const t = (
+    key: Parameters<typeof translate>[1],
+    values?: Record<string, string | number>,
+  ) => translate(locale, key, values);
+  useEffect(() => {
+    const onLanguageChange = () => setSystemLanguages(navigator.languages);
+    window.addEventListener("languagechange", onLanguageChange);
+    return () => window.removeEventListener("languagechange", onLanguageChange);
+  }, []);
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    void setTrayLanguage(locale).catch((error: unknown) =>
+      console.error("Tray language update failed", error),
+    );
+  }, [locale]);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [updated, setUpdated] = useState(false);
   const [busy, setBusy] = useState(false);
   const [limit, setLimit] = useState(80);
   const [start, setStart] = useState(75);
@@ -37,7 +75,7 @@ function App() {
         setStart(response.data.config?.start_threshold.value ?? 75);
       }
     } catch (e) {
-      if (id === generation.current) setError(describeError(e));
+      if (id === generation.current) setError(e);
     }
   }, []);
   useEffect(() => {
@@ -60,7 +98,7 @@ function App() {
     if (readOnly && command.command !== "probe") return;
     mutating.current = true;
     setBusy(true);
-    setMessage(null);
+    setUpdated(false);
     setError(null);
     ++generation.current;
     try {
@@ -70,12 +108,12 @@ function App() {
         setReport(JSON.stringify(result.data, null, 2));
       else {
         edited.current = false;
-        setMessage("Charging settings updated.");
+        setUpdated(true);
         mutating.current = false;
         await refresh();
       }
     } catch (e) {
-      setError(describeError(e));
+      setError(e);
     } finally {
       mutating.current = false;
       setBusy(false);
@@ -86,12 +124,12 @@ function App() {
   const supported = available(caps?.charge_limit);
   const entries = caps
     ? ([
-        ["Charge limit", caps.charge_limit],
-        ["Start threshold", caps.start_threshold],
-        ["Stop threshold", caps.stop_threshold],
-        ["Force discharge", caps.force_discharge],
-        ["Adapter disable", caps.adapter_disable],
-        ["Top up", caps.temporary_full_charge],
+        [t("chargeLimit"), caps.charge_limit],
+        [t("startThreshold"), caps.start_threshold],
+        [t("stopThreshold"), caps.stop_threshold],
+        [t("forceDischarge"), caps.force_discharge],
+        [t("adapterDisable"), caps.adapter_disable],
+        [t("topUpFeature"), caps.temporary_full_charge],
       ] as const)
     : [];
   return (
@@ -102,19 +140,19 @@ function App() {
         </div>
         <div>
           <strong>BatteryBridge</strong>
-          <span className="eyebrow">CHARGE CONTROL</span>
+          <span className="eyebrow">{t("tagline")}</span>
         </div>
         <button
           type="button"
           className="refresh"
-          aria-label="Refresh battery status"
+          aria-label={t("refresh")}
           disabled={busy}
           onClick={() => void refresh()}
         >
           ↻
         </button>
       </header>
-      <section className="battery-view" aria-label="Battery status">
+      <section className="battery-view" aria-label={t("batteryStatus")}>
         <svg
           className="charge-orbit"
           viewBox="0 0 240 240"
@@ -138,64 +176,57 @@ function App() {
             <circle cx="120" cy="192" r="2" />
           </g>
         </svg>
-        <span className="eyebrow battery-label">BATTERY STATUS</span>
+        <span className="eyebrow battery-label">{t("batteryStatus")}</span>
         <div className="charge">
           <span>{battery?.percent ?? "—"}</span>
           <span className="percent">%</span>
         </div>
         <progress
           className="battery-track"
-          aria-label="Battery charge"
+          aria-label={t("batteryCharge")}
           max={100}
           value={battery?.percent ?? undefined}
         />
         <p>
           <span className="dot" />
-          {battery?.state ??
+          {(battery ? batteryState(locale, battery.state) : null) ??
             (snapshot
-              ? "No battery detected"
+              ? t("noBattery")
               : error
-                ? "Status unavailable"
-                : "Connecting to service")}
+                ? t("unavailable")
+                : t("connecting"))}
           {battery?.on_ac != null && (
             <span className="power">
-              {battery.on_ac ? "AC connected" : "On battery"}
+              {battery.on_ac ? t("ac") : t("onBattery")}
             </span>
           )}
         </p>
       </section>
-      {error && (
+      {error != null && (
         <div className="notice error" role="alert">
-          <strong>Unable to complete request</strong>
-          <p>{error}</p>
-          <small>
-            Check the service status and device capabilities, then try again.
-          </small>
+          <strong>{t("requestTitle")}</strong>
+          <p>{describeError(error, t("requestFailed"))}</p>
+          <small>{t("retry")}</small>
         </div>
       )}
       {snapshot?.last_error != null && !readOnly && (
         <div className="notice error" role="alert">
-          Policy could not be enforced: {describeError(snapshot.last_error)}
+          {t("policyError")}:{" "}
+          {describeError(snapshot.last_error, t("requestFailed"))}
         </div>
       )}
       {snapshot && readOnly && (
         <div className="notice" role="status">
-          <strong>Read-only mode</strong>
-          <p>
-            Battery status and compatibility reports are available. Start the
-            BatteryBridge service to change charging settings.
-          </p>
+          <strong>{t("readOnly")}</strong>
+          <p>{t("readOnlyBody")}</p>
         </div>
       )}
       {caps?.charge_limit.state === "experimental" && (
-        <p className="notice">
-          Experimental charge control. Compatibility with this device’s firmware
-          has not been verified.
-        </p>
+        <p className="notice">{t("experimentalNotice")}</p>
       )}
-      {message && (
+      {updated && (
         <p className="notice" role="status">
-          {message}
+          {t("updated")}
         </p>
       )}
       {supported ? (
@@ -205,21 +236,21 @@ function App() {
               <span className="section-mark" aria-hidden="true">
                 ✳
               </span>
-              <h1>Charge limit</h1>
+              <h1>{t("chargeLimit")}</h1>
             </div>
             <span className="policy-state">
               {readOnly
-                ? "Settings unavailable"
+                ? t("settingsUnavailable")
                 : snapshot?.top_up_active
-                  ? "Top-up active"
+                  ? t("topUpActive")
                   : snapshot?.config?.charge_limit == null
-                    ? "Off"
-                    : `${snapshot.config?.charge_limit}% active`}
+                    ? t("off")
+                    : t("activeLimit", {
+                        percent: snapshot.config.charge_limit,
+                      })}
             </span>
           </div>
-          <p className="muted">
-            Applies to the first battery. Other packs keep their own settings.
-          </p>
+          <p className="muted">{t("firstBattery")}</p>
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -231,7 +262,7 @@ function App() {
             }}
           >
             <label className="limit-input" htmlFor="stop-threshold">
-              Stop charging at{" "}
+              {t("stopAt")}{" "}
               {caps?.allowed_limits ? (
                 <select
                   id="stop-threshold"
@@ -252,7 +283,7 @@ function App() {
                 <span>
                   <input
                     id="stop-threshold"
-                    aria-label="Stop charging percentage"
+                    aria-label={t("stopPercentage")}
                     type="number"
                     min="1"
                     max="100"
@@ -281,14 +312,14 @@ function App() {
                       setUseStart(e.target.checked);
                     }}
                   />{" "}
-                  Set start threshold
+                  {t("useStart")}
                 </label>
                 {useStart && (
                   <label htmlFor="start-threshold">
-                    Resume at{" "}
+                    {t("resumeAt")}{" "}
                     <input
                       id="start-threshold"
-                      aria-label="Start charging percentage"
+                      aria-label={t("startPercentage")}
                       type="number"
                       min="0"
                       max={limit - 1}
@@ -311,7 +342,7 @@ function App() {
                 className="primary"
                 disabled={busy || readOnly || !battery || !!error}
               >
-                Apply limit
+                {t("apply")}
               </button>
               <button
                 type="button"
@@ -320,7 +351,7 @@ function App() {
                   void act({ command: "limit", stop: null, start: null })
                 }
               >
-                Turn off
+                {t("turnOff")}
               </button>
             </div>
           </form>
@@ -337,21 +368,24 @@ function App() {
               }
               onClick={() => void act({ command: "top_up" })}
             >
-              Top up to 100% <span>↗</span>
+              {t("topUp")} <span>↗</span>
             </button>
           ) : (
             <p className="muted">
-              Top-up unavailable: {caps?.temporary_full_charge.reason}
+              {t("topUpUnavailable")}:{" "}
+              {caps &&
+                capabilityReason(locale, caps.temporary_full_charge.reason)}
             </p>
           )}
         </section>
       ) : (
         snapshot && (
           <section className="notice">
-            <h1>Charge limit unavailable</h1>
-            <p>{caps?.charge_limit.reason}</p>
+            <h1>{t("limitUnavailable")}</h1>
+            <p>{caps && capabilityReason(locale, caps.charge_limit.reason)}</p>
             <p>
-              Detected device: {snapshot.device.vendor} {snapshot.device.model}
+              {t("detectedDevice")}: {snapshot.device.vendor}{" "}
+              {snapshot.device.model}
             </p>
           </section>
         )
@@ -359,22 +393,22 @@ function App() {
       {snapshot && (
         <>
           <section className="backend">
-            <span className="eyebrow">ACTIVE BACKEND</span>
+            <span className="eyebrow">{t("backend")}</span>
             <strong>{snapshot.backend}</strong>
             <p>
               {snapshot.device.vendor} {snapshot.device.model}
             </p>
           </section>
           <details>
-            <summary>Device capabilities</summary>
+            <summary>{t("capabilities")}</summary>
             <ul className="capabilities">
               {entries.map(([name, cap]) => (
                 <li key={name}>
                   <div>
                     <strong>{name}</strong>
-                    <span className={cap.state}>{cap.state}</span>
+                    <span className={cap.state}>{t(cap.state)}</span>
                   </div>
-                  <p>{cap.reason}</p>
+                  <p>{capabilityReason(locale, cap.reason)}</p>
                 </li>
               ))}
             </ul>
@@ -385,19 +419,16 @@ function App() {
             disabled={busy}
             onClick={() => void act({ command: "probe" })}
           >
-            Generate compatibility report
+            {t("reportButton")}
           </button>
         </>
       )}
       {report && (
         <section className="report">
-          <h2>Compatibility report</h2>
-          <p className="muted">
-            Reports exclude serial numbers and network identifiers. Review the
-            contents before sharing.
-          </p>
+          <h2>{t("reportTitle")}</h2>
+          <p className="muted">{t("reportPrivacy")}</p>
           <textarea
-            aria-label="Compatibility report JSON"
+            aria-label={t("reportJson")}
             readOnly
             value={report}
             rows={10}
@@ -406,11 +437,35 @@ function App() {
             download="batterybridge-probe.json"
             href={`data:application/json;charset=utf-8,${encodeURIComponent(report)}`}
           >
-            Save JSON report
+            {t("saveReport")}
           </a>
         </section>
       )}
-      <footer>Charging features depend on your device and firmware.</footer>
+      <div className="language-setting">
+        <label htmlFor="language">{t("language")}</label>
+        <select
+          id="language"
+          value={language}
+          onChange={(event) => {
+            const choice = event.target.value;
+            if (!isLanguageChoice(choice)) return;
+            setLanguage(choice);
+            try {
+              window.localStorage.setItem(languageStorageKey, choice);
+            } catch {
+              /* The choice still works for this session. */
+            }
+          }}
+        >
+          <option value="system">{t("systemLanguage")}</option>
+          {Object.entries(languageNames).map(([code, name]) => (
+            <option key={code} value={code} lang={code}>
+              {name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <footer>{t("footer")}</footer>
     </main>
   );
 }

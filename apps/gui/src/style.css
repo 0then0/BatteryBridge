@@ -60,6 +60,7 @@ textarea {
   outline-offset: 4px;
 }
 button {
+  overflow-wrap: anywhere;
   min-height: 44px;
   padding: 10px 14px;
   border: 1px solid var(--control-line);
@@ -100,7 +101,11 @@ header strong {
   font-weight: 400;
   letter-spacing: -0.6px;
 }
+header > div:not(.brand-mark) {
+  min-width: 0;
+}
 .eyebrow {
+  text-transform: uppercase;
   display: block;
   color: var(--muted);
   font: 10px / 1.6 var(--mono);
@@ -215,7 +220,6 @@ header strong {
   gap: 7px;
   margin: 0;
   font-size: 12px;
-  text-transform: capitalize;
 }
 .dot {
   width: 5px;
@@ -254,6 +258,7 @@ header strong {
   font: 10px / 1.5 var(--mono);
 }
 h1 {
+  overflow-wrap: anywhere;
   margin: 0;
   font-size: 24px;
   line-height: 1.2;
@@ -278,6 +283,7 @@ h2 {
   margin: 20px 0;
 }
 .limit-input > span {
+  flex-shrink: 0;
   white-space: nowrap;
 }
 input[type="number"],
@@ -315,6 +321,7 @@ input[type="checkbox"] {
   min-height: 32px;
   align-items: center;
   gap: 4px;
+  flex-wrap: wrap;
 }
 .start-setting input[type="number"] {
   width: 65px;
@@ -438,6 +445,22 @@ footer {
   margin: 24px 0 0;
   color: var(--muted);
   font: 10px / 1.8 var(--mono);
+}
+.language-setting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+.language-setting select {
+  width: auto;
+  max-width: 100%;
 }
 textarea {
   width: 100%;

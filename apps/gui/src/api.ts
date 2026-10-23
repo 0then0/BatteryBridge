@@ -45,7 +45,10 @@ type Response =
 export function request(command: Command): Promise<Response> {
   return invoke<Response>("request", { command });
 }
-export function describeError(error: unknown): string {
+export function describeError(
+  error: unknown,
+  fallback = "The BatteryBridge service could not complete this request.",
+): string {
   if (typeof error === "string") return error;
   if (
     typeof error === "object" &&
@@ -54,7 +57,11 @@ export function describeError(error: unknown): string {
     typeof error.detail === "string"
   )
     return error.detail;
-  return "The BatteryBridge service could not complete this request.";
+  return fallback;
+}
+
+export function setTrayLanguage(locale: string): Promise<void> {
+  return invoke("set_language", { locale });
 }
 
 export function available(capability?: Capability): boolean {

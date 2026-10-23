@@ -11,7 +11,7 @@ BatteryBridge is a battery charge-control tool for Linux, macOS and Windows. It 
 
 Available controls depend on your laptop's kernel driver, firmware and vendor interfaces. BatteryBridge detects these capabilities and explains which features are available on your device.
 
-**Project status:** experimental. CI tests and builds the project on all three operating systems. Device-level validation of hardware writes is still required; see [hardware compatibility](docs/hardware.md) for the current support boundaries.
+**Release:** 0.1.0. CI tests and builds the project on all three operating systems. Apple Silicon SMC and Lenovo WMI charge control remain experimental and require device-level validation; see [hardware compatibility](docs/hardware.md) for the current support boundaries.
 
 ## Features
 
@@ -21,12 +21,13 @@ Available controls depend on your laptop's kernel driver, firmware and vendor in
 - Keep charging settings active through a separate background service.
 - Inspect device capabilities and export a compatibility report.
 - Use the CLI independently of the tray app.
+- Use the desktop app in English, Russian, Spanish, German, French, Japanese or Brazilian Portuguese, with system light/dark appearance.
 
 ## Getting started
 
 On an Apple Silicon Mac, download **BatteryBridge-macos-apple-silicon.pkg** from [Releases](https://github.com/0then0/BatteryBridge/releases). Open it in Finder, complete installation and open **Applications → BatteryBridge**. The package installs and starts the charging service; Terminal is not required. See [installation](docs/install.md) for unsigned-preview prompts, account requirements and supported systems.
 
-Windows and Linux previews are developer archives with separate service setup.
+Windows and Linux downloads are developer archives with separate service setup. The macOS package is unsigned; the installation guide explains the system prompts.
 
 ### Build from source
 

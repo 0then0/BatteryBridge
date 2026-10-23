@@ -7,6 +7,40 @@ use tauri::{
     tray::TrayIconBuilder,
 };
 
+struct TrayLabels {
+    open: MenuItem<tauri::Wry>,
+    quit: MenuItem<tauri::Wry>,
+}
+
+fn language_catalog(locale: &str) -> Option<&'static str> {
+    match locale {
+        "en" => Some(include_str!("../../src/locales/en.json")),
+        "ru" => Some(include_str!("../../src/locales/ru.json")),
+        "es" => Some(include_str!("../../src/locales/es.json")),
+        "de" => Some(include_str!("../../src/locales/de.json")),
+        "fr" => Some(include_str!("../../src/locales/fr.json")),
+        "ja" => Some(include_str!("../../src/locales/ja.json")),
+        "pt-BR" => Some(include_str!("../../src/locales/pt-BR.json")),
+        _ => None,
+    }
+}
+
+#[tauri::command]
+fn set_language(locale: String, labels: tauri::State<'_, TrayLabels>) -> Result<(), String> {
+    let source = language_catalog(&locale).ok_or("Unsupported language")?;
+    let catalog: std::collections::BTreeMap<String, String> =
+        serde_json::from_str(source).map_err(|e| e.to_string())?;
+    labels
+        .open
+        .set_text(&catalog["trayOpen"])
+        .map_err(|e| e.to_string())?;
+    labels
+        .quit
+        .set_text(&catalog["trayQuit"])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[tauri::command]
 async fn request(command: Command) -> Result<Response, Error> {
     command.validate()?;
@@ -18,11 +52,12 @@ async fn request(command: Command) -> Result<Response, Error> {
 }
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![request])
+        .invoke_handler(tauri::generate_handler![request, set_language])
         .setup(|app| {
             let open = MenuItem::with_id(app, "open", "Open BatteryBridge", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit BatteryBridge", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &quit])?;
+            app.manage(TrayLabels { open, quit });
             let icon = app
                 .default_window_icon()
                 .cloned()
@@ -56,6 +91,22 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("BatteryBridge GUI failed to start");
+}
+
+#[cfg(test)]
+mod language_tests {
+    #[test]
+    fn tray_catalogs_cover_supported_languages_and_reject_unknown_values() {
+        for locale in ["en", "ru", "es", "de", "fr", "ja", "pt-BR"] {
+            let source = super::language_catalog(locale).expect("catalog missing");
+            let catalog: std::collections::BTreeMap<String, String> =
+                serde_json::from_str(source).expect("invalid catalog");
+            assert!(!catalog["trayOpen"].trim().is_empty());
+            assert!(!catalog["trayQuit"].trim().is_empty());
+        }
+        assert!(super::language_catalog("../en").is_none());
+        assert!(super::language_catalog("unsupported").is_none());
+    }
 }
 
 #[cfg(all(test, feature = "custom-protocol"))]

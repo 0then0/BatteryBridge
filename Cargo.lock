@@ -182,6 +182,7 @@ dependencies = [
  "batterybridge-ipc",
  "batterybridge-platform",
  "batterybridge-protocol",
+ "serde_json",
  "tauri",
  "tauri-build",
 ]

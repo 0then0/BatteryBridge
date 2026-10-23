@@ -12,6 +12,7 @@ description = "BatteryBridge desktop tray application built with Tauri."
 batterybridge-protocol.workspace = true
 batterybridge-ipc.workspace = true
 batterybridge-platform.workspace = true
+serde_json.workspace = true
 tauri = { version = "2", features = ["tray-icon"], optional = true }
 
 [features]

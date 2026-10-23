@@ -1,31 +1,33 @@
-## First developer preview
+## BatteryBridge 0.1.0
 
-### Install on an Apple Silicon Mac
+Battery status, device-aware charging limits and a desktop tray app for macOS, Linux and Windows.
 
-1. Download **BatteryBridge-macos-apple-silicon.pkg** below. The archives are intended for developers and manual installations.
-2. Open the package in Finder and follow Installer. Enter an administrator password when macOS asks.
-3. Open **Applications → BatteryBridge** using an administrator account. The installer includes and starts the charging service, so no Terminal commands are needed.
-4. Set a charge limit and choose **Apply limit**. Check that the app shows the saved limit and no policy error. The service starts after reboot and keeps running when the app closes.
+### Languages and appearance
 
-**Unsigned preview:** this package is not Developer ID signed or notarized. macOS may block it. After attempting to open it, review the package origin and use **System Settings → Privacy & Security → Open Anyway** if you choose to trust this preview. Do not disable Gatekeeper. Managed Macs may prohibit unsigned packages entirely. A signed, notarized installer is required for a frictionless public release.
+- English, Russian, Spanish, German, French, Japanese and Brazilian Portuguese.
+- Automatic system-language detection with a saved language selector at the bottom of the app. Changing language keeps unsaved charging inputs intact.
+- Localized labels, battery states, capability explanations, notices and tray actions. The macOS Installer welcome and completion pages also follow the system language.
+- System light/dark appearance and layouts that adapt to the minimum 320 px window width.
+- Compatibility JSON, CLI output and verbatim OS/firmware diagnostics retain their original format for support and automation.
 
-### What is included
+### Install or update on an Apple Silicon Mac
 
-- System light/dark appearance, battery status, charging settings and compatibility reports.
-- The app in `/Applications/BatteryBridge.app` and a root-owned launchd service.
-- Private CLI, service and launcher executables in `/Library/PrivilegedHelperTools`.
-- Machine-wide settings preserved across updates. A new installation starts with the charge limit off. Updating closes the previous app and restarts the service.
+1. Download **BatteryBridge-macos-apple-silicon.pkg** below. Open it in Finder and follow Installer.
+2. Enter an administrator password when prompted. The package installs both the app and charging service; Terminal is not required.
+3. Open **Applications → BatteryBridge** from a local administrator account. Choose a stop percentage and apply the limit.
 
-### Limits of this preview
+Installing over `v0.1.0-dev.1` preserves the saved charge policy. The installer closes the running app and restarts the service. Open the installed app after the update. A new installation starts with the charge limit off. The service starts after a reboot and continues running when the app closes.
 
-- The graphical installer targets Apple Silicon Macs, macOS 11 or newer. Intel Mac charging control is unsupported.
-- Apple Silicon SMC charge control is experimental. Software checks do not establish that your firmware accepts a hardware write. A hardware refusal must be reported as an error in the app.
-- Only local administrator accounts can change charging settings. Other accounts can see read-only status.
-- Windows and Linux archives contain native GUI builds, CLI and service definitions, but service installation on those platforms is still manual. Their GUI installers do not install the charging service.
-- There is no automatic updater. Install a newer package to update. Use **Turn off** to restore normal charging before removing the app; dragging the app to Trash does not uninstall the service. Administrative removal is documented in `docs/service.md`.
+### Distribution and hardware limitations
 
-### Please check
+- **Unsigned macOS package:** this release is not Developer ID signed or notarized. If macOS blocks it, review its origin and use **System Settings → Privacy & Security → Open Anyway** only if you trust the package. Do not disable Gatekeeper. Organization-managed Macs may prohibit unsigned installers.
+- The graphical installer supports Apple Silicon Macs with macOS 11 or newer. Intel Mac charging control is unsupported. Only local administrator accounts can change the machine-wide charging policy.
+- Apple Silicon SMC and Lenovo WMI charge control remain experimental. Firmware can refuse a write; hardware errors appear in the app. Publication of this release does not certify every laptop or firmware version.
+- Windows and Linux downloads are developer archives with native GUI builds, CLI and service definitions. Charging-service installation on these platforms remains manual. Windows GUI installers do not install that service.
+- There is no automatic updater. To restore normal charging, use **Turn off** in the app. Deleting the GUI alone does not uninstall the service; see the service-removal guide in the included documentation.
 
-Installation without Terminal, absence of “Read-only mode” under an administrator account, applying an 80% limit, visible firmware errors, **Turn off**, **Top up**, system theme changes, and reconnecting after reboot. If you already run BatteryBridge manually, quit that copy before testing the installed app.
+### Downloads and support
 
-Include your macOS version, Mac model and a reviewed compatibility report from the app when reporting an issue. Do not include serial numbers or other private identifiers. SHA-256 checksums for the downloads are in `SHA256SUMS.txt`.
+`SHA256SUMS.txt` contains checksums for all assets. The macOS `.pkg` is the complete graphical installer; the archives are for manual installations and developers. CLI, GUI and service all use version `0.1.0`; the macOS bundle build is `2` and the Installer receipt is `0.1.0.2`.
+
+For issues, include your OS version, device model and a reviewed compatibility report generated by the app. Reports exclude serial numbers and network identifiers. Avoid sharing additional personal data.

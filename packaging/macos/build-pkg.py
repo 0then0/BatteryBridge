@@ -2,6 +2,8 @@
 """Build the macOS GUI + launchd installer from an existing release build."""
 
 import argparse
+import html
+import json
 import plistlib
 import shutil
 import subprocess
@@ -46,7 +48,7 @@ def stage_payload(destination, build):
 
 def distribution(version):
     root = ET.Element("installer-gui-script", {"minSpecVersion": "2"})
-    ET.SubElement(root, "title").text = "BatteryBridge Developer Preview"
+    ET.SubElement(root, "title").text = "BatteryBridge"
     ET.SubElement(root, "welcome", {"file": "Welcome.html"})
     ET.SubElement(root, "conclusion", {"file": "Conclusion.html"})
     ET.SubElement(root, "options", {"customize": "never", "hostArchitectures": "arm64",
@@ -66,11 +68,29 @@ def distribution(version):
     return ET.tostring(root, encoding="unicode")
 
 
+def stage_resources(destination):
+    """Installer selects a .lproj matching the user's preferred system language."""
+    for source in sorted((REPO / "apps/gui/src/locales").glob("*.json")):
+        catalog = json.loads(source.read_text(encoding="utf-8"))
+        target = destination / f"{source.stem}.lproj"
+        target.mkdir(parents=True)
+        for filename, heading, paragraphs in (
+            ("Welcome.html", "installerTitle", ("installerWelcome", "installerUpdate", "installerAccess", "experimentalNotice", "installerUnsigned")),
+            ("Conclusion.html", "installerReady", ("installerOpen", "installerFinish")),
+        ):
+            title = html.escape(catalog[heading])
+            body = "".join(f"<p>{html.escape(catalog[key])}</p>" for key in paragraphs)
+            (target / filename).write_text(
+                f'<!doctype html><html lang="{source.stem}"><meta charset="utf-8">'
+                f'<title>{title}</title><body><h1>{title}</h1>{body}</body></html>', encoding="utf-8"
+            )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build-dir", type=Path, default=REPO / "target/release")
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--version", default="0.1.0.1", help="Numeric Installer receipt version")
+    parser.add_argument("--version", default="0.1.0.2", help="Numeric Installer receipt version")
     args = parser.parse_args()
     output = args.output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -97,8 +117,9 @@ def main():
                         "--component-plist", str(components),
                         "--scripts", str(HERE / "scripts"), str(work / "component.pkg")], check=True)
         (work / "Distribution.xml").write_text(distribution(args.version))
+        stage_resources(work / "resources")
         subprocess.run(["productbuild", "--distribution", str(work / "Distribution.xml"),
-                        "--package-path", str(work), "--resources", str(HERE / "resources"),
+                        "--package-path", str(work), "--resources", str(work / "resources"),
                         str(output)], check=True)
     print(output)
 

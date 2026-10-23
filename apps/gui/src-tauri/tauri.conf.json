@@ -27,6 +27,9 @@
   },
   "bundle": {
     "active": true,
+    "macOS": {
+      "bundleVersion": "2"
+    },
     "targets": "all",
     "icon": [
       "icons/32x32.png",

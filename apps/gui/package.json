@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1 --port 1420 --strictPort",
     "build": "tsc --noEmit && vite build",
     "tauri": "tauri",
-    "check": "biome check ../.. && node --test tests/*.test.mjs",
+    "check": "biome check ../.. && node --experimental-strip-types --test tests/*.test.mjs",
     "check:fix": "biome check --write ../..",
     "build:native": "npm run build && cargo build -p batterybridge-gui --features desktop,custom-protocol --locked"
   },

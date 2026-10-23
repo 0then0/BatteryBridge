@@ -84,6 +84,19 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(root.find("domains").get("enable_anywhere"), "false")
         self.assertEqual(root.find("domains").get("enable_currentUserHome"), "false")
 
+    def test_installer_resources_cover_all_app_languages(self):
+        resources = self.root / "resources"
+        builder.stage_resources(resources)
+        catalogs = sorted((builder.REPO / "apps/gui/src/locales").glob("*.json"))
+        self.assertEqual(len(catalogs), 7)
+        for catalog in catalogs:
+            for name in ("Welcome.html", "Conclusion.html"):
+                page = resources / f"{catalog.stem}.lproj" / name
+                content = page.read_text(encoding="utf-8")
+                self.assertIn(f'lang="{catalog.stem}"', content)
+                self.assertIn("BatteryBridge", content)
+                self.assertNotIn("{percent}", content)
+
     def test_preinstall_stops_old_service_before_gui(self):
         result = self.run_script("preinstall")
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -145,9 +158,14 @@ class InstallerTests(unittest.TestCase):
         info = ET.parse(component / "PackageInfo").getroot()
         self.assertEqual(info.get("auth"), "root")
         self.assertEqual(info.get("relocatable"), "false")
+        self.assertEqual(info.find("bundle").get("CFBundleVersion"), "2")
         self.assertIsNotNone(info.find("scripts/preinstall"))
         self.assertIsNotNone(info.find("scripts/postinstall"))
         self.assertEqual(len(info.find("relocate")), 0)
+        app_info = plistlib.loads((component / "Payload/Applications/BatteryBridge.app/Contents/Info.plist").read_bytes())
+        self.assertEqual(set(app_info["CFBundleLocalizations"]), {"en", "ru", "es", "de", "fr", "ja", "pt-BR"})
+        for locale in app_info["CFBundleLocalizations"]:
+            self.assertTrue((expanded / "Resources" / f"{locale}.lproj" / "Welcome.html").is_file())
         bom = subprocess.check_output(["lsbom", str(component / "Bom")], text=True)
         self.assertIn("./Library/PrivilegedHelperTools/io.github.batterybridge.service\t100755\t0/0", bom)
         self.assertIn("./Library/LaunchDaemons/io.github.batterybridge.plist\t100644\t0/0", bom)
