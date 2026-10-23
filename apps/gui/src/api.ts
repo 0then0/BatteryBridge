@@ -69,3 +69,11 @@ export function available(capability?: Capability): boolean {
     capability?.state === "supported" || capability?.state === "experimental"
   );
 }
+
+export function canUninstall(): Promise<boolean> {
+  return invoke("can_uninstall");
+}
+
+export function uninstall(): Promise<void> {
+  return invoke("uninstall");
+}

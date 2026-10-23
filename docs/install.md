@@ -17,7 +17,11 @@ A new installation starts with the charge limit off. The service runs after the 
 
 The GUI should no longer show **Read-only mode** for a local administrator. Standard accounts retain read-only access. Installing the service does not establish firmware compatibility: Apple Silicon SMC charging operations are experimental.
 
-To restore normal charging, select **Turn off** in the app. Deleting the app alone leaves the background service installed. Administrative removal instructions are in the [service guide](service.md#remove-the-packaged-macos-service).
+To restore normal charging without uninstalling, select **Turn off** in the app.
+
+In version 0.1.1 and newer, choose **Uninstall BatteryBridge** at the bottom of the app, confirm removal and approve the macOS administrator dialog. This restores normal charging, unloads the service and removes the installed app, helpers, saved policy and service log. Removal stops if charging cannot be restored or the service cannot be unloaded. Your per-user language preference is retained.
+
+Moving the app to Trash alone leaves the background service installed. Version 0.1.0 does not include the graphical uninstaller; use the [administrative removal instructions](service.md#remove-the-packaged-macos-service), or install a newer build first.
 
 ## Windows and Linux
 

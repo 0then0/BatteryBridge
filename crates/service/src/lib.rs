@@ -11,6 +11,7 @@ pub struct Service {
     policy: Policy,
     path: PathBuf,
     last_error: Option<Error>,
+    sleep_error: Option<Error>,
 }
 impl Service {
     pub fn new(platform: Platform, path: PathBuf) -> Result<Self> {
@@ -25,6 +26,7 @@ impl Service {
             policy,
             path,
             last_error,
+            sleep_error: None,
         })
     }
     fn apply_policy(&mut self, next: &mut Policy) -> Result<()> {
@@ -64,14 +66,16 @@ impl Service {
         }
     }
     pub fn prepare_sleep(&mut self) -> Result<()> {
-        self.policy.discharge_target = None;
-        if let Some(controller) = &mut self.controller {
-            controller.release()?;
-            if self.policy.config.charge_limit.is_some() && !self.policy.top_up {
-                controller.charging(false)?;
-            }
-        }
-        Ok(())
+        let result = match &mut self.controller {
+            Some(controller) => self.policy.prepare_sleep(controller.as_mut()),
+            None => Ok(()),
+        };
+        // A later successful awake tick does not prove that sleep preparation worked.
+        self.sleep_error = result
+            .as_ref()
+            .err()
+            .map(|error| Error::PlatformError(format!("Sleep preparation failed: {error}")));
+        result
     }
     pub fn shutdown(&mut self) -> Result<()> {
         if let Some(controller) = &mut self.controller {
@@ -98,7 +102,7 @@ impl Service {
                 config: Some(self.policy.config.clone()),
                 top_up_active: self.policy.top_up,
                 discharge_target: self.policy.discharge_target,
-                last_error: self.last_error.clone(),
+                last_error: self.last_error.clone().or_else(|| self.sleep_error.clone()),
             }))),
             Command::Capabilities => Ok(Response::Capabilities(
                 self.platform.report.capabilities.clone(),
@@ -206,6 +210,7 @@ mod tests {
             policy: Policy::new(config::load(&path).unwrap()).unwrap(),
             path,
             last_error: None,
+            sleep_error: None,
         }
     }
     fn dir() -> PathBuf {
@@ -214,6 +219,45 @@ mod tests {
             std::process::id(),
             COUNTER.fetch_add(1, Ordering::Relaxed)
         ))
+    }
+    #[test]
+    fn sleep_failure_remains_visible_after_successful_awake_reconciliation() {
+        struct SleepFailure;
+        impl ChargeController for SleepFailure {
+            fn capabilities(&self) -> Capabilities {
+                Controller(Rc::new(RefCell::new(None))).capabilities()
+            }
+            fn apply(&mut self, _: Option<u8>, _: Option<u8>) -> Result<()> {
+                Ok(())
+            }
+            fn charging(&mut self, enabled: bool) -> Result<()> {
+                if enabled {
+                    Ok(())
+                } else {
+                    Err(Error::PlatformError("sleep gate refused".into()))
+                }
+            }
+        }
+        let mut s = service(dir().join("config.toml"), Rc::new(RefCell::new(None)));
+        s.controller = Some(Box::new(SleepFailure));
+        s.policy.config.charge_limit = Some(80);
+        assert!(s.prepare_sleep().is_err());
+        s.tick(); // 74% allows charging, but cannot validate a previous sleep transition.
+        let Response::Status(snapshot) = s.handle(Request::new(Command::Status)) else {
+            panic!("status");
+        };
+        assert_eq!(
+            snapshot.last_error,
+            Some(Error::PlatformError(
+                "Sleep preparation failed: platform error: sleep gate refused".into()
+            ))
+        );
+        s.controller = Some(Box::new(Controller(Rc::new(RefCell::new(None)))));
+        s.prepare_sleep().unwrap();
+        let Response::Status(snapshot) = s.handle(Request::new(Command::Status)) else {
+            panic!("status");
+        };
+        assert_eq!(snapshot.last_error, None);
     }
     #[test]
     fn persists_policy_and_clears_ephemeral_mode_on_restart() {

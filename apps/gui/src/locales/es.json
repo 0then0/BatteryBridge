@@ -20,7 +20,7 @@
   "settingsUnavailable": "Ajustes no disponibles",
   "topUpActive": "Carga al 100% activa",
   "off": "Desactivado",
-  "activeLimit": "Límite: {percent}%",
+  "activeLimit": "Límite guardado: {percent}%",
   "firstBattery": "Se aplica a la primera batería. Las demás conservan sus ajustes.",
   "stopAt": "Detener la carga al",
   "stopPercentage": "Porcentaje para detener la carga",
@@ -75,6 +75,11 @@
   "installerAccess": "Solo los administradores locales pueden cambiar los ajustes de carga. El servicio sigue activo al cerrar la app y se inicia tras reiniciar el equipo.",
   "installerReady": "BatteryBridge está listo",
   "installerOpen": "Abre Finder → Aplicaciones → BatteryBridge. No necesitas comandos de Terminal. Elige un porcentaje de parada y aplica el límite.",
-  "installerFinish": "Usa «Desactivar» en la app para recuperar la carga normal. Eliminar la app no elimina el servicio.",
-  "installerUnsigned": "Este paquete no está firmado ni notarizado por Apple. Si macOS lo bloquea, comprueba su origen y permite su apertura en los ajustes de privacidad y seguridad solo si confías en esta versión. No desactives Gatekeeper."
+  "installerFinish": "Usa «Desinstalar BatteryBridge» en la aplicación para eliminarla junto con el servicio y restablecer la carga normal. Mover solo la aplicación a la papelera deja el servicio instalado.",
+  "installerUnsigned": "Este paquete no está firmado ni notarizado por Apple. Si macOS lo bloquea, comprueba su origen y permite su apertura en los ajustes de privacidad y seguridad solo si confías en esta versión. No desactives Gatekeeper.",
+  "limitExceeded": "La carga continúa por encima del límite guardado. El límite no se está aplicando. Comprueba la fuente de alimentación y la compatibilidad del dispositivo.",
+  "sleepNotice": "En este Mac, el servicio controla la carga mientras está despierto. El firmware puede restablecer la carga durante el reposo; no se garantiza el límite con la tapa cerrada.",
+  "uninstall": "Desinstalar BatteryBridge",
+  "uninstallConfirm": "¿Eliminar la aplicación, el servicio en segundo plano y los ajustes de carga? Primero se restablecerá la carga normal. macOS solicitará una contraseña de administrador. Si falla el restablecimiento, se detendrá la desinstalación.",
+  "cancel": "Cancelar"
 }

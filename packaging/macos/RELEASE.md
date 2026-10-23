@@ -1,33 +1,27 @@
-## BatteryBridge 0.1.0
+## BatteryBridge 0.1.1
 
-Battery status, device-aware charging limits and a desktop tray app for macOS, Linux and Windows.
+This patch adds graphical macOS removal and corrects charging-policy transitions around sleep.
 
-### Languages and appearance
+### Changes
 
-- English, Russian, Spanish, German, French, Japanese and Brazilian Portuguese.
-- Automatic system-language detection with a saved language selector at the bottom of the app. Changing language keeps unsaved charging inputs intact.
-- Localized labels, battery states, capability explanations, notices and tray actions. The macOS Installer welcome and completion pages also follow the system language.
-- System light/dark appearance and layouts that adapt to the minimum 320 px window width.
-- Compatibility JSON, CLI output and verbatim OS/firmware diagnostics retain their original format for support and automation.
+- **Uninstall without Terminal:** choose **Uninstall BatteryBridge** at the bottom of the macOS app, confirm and approve the administrator dialog. The app restores normal charging, unloads the service, and removes the installed app, helpers, saved policy and log. Removal stops if charging restoration or service unloading fails. Moving the app to Trash alone still leaves the service installed.
+- **Sleep and resume:** preparing for sleep no longer briefly releases the saved charging limit. Charging inhibition is retained after wake until the resume threshold is reached, instead of reopening the gate inside the hysteresis band.
+- **Visible diagnostics:** errors preparing for sleep survive successful awake polling. The UI identifies a percentage as a saved setting and warns when telemetry shows charging above it outside an explicit top-up.
+- New messages and removal controls are translated into English, Russian, Spanish, German, French, Japanese and Brazilian Portuguese.
+- The README includes direct downloads and checksums for each published platform.
 
-### Install or update on an Apple Silicon Mac
+### Install or update
 
-1. Download **BatteryBridge-macos-apple-silicon.pkg** below. Open it in Finder and follow Installer.
-2. Enter an administrator password when prompted. The package installs both the app and charging service; Terminal is not required.
-3. Open **Applications → BatteryBridge** from a local administrator account. Choose a stop percentage and apply the limit.
+On an Apple Silicon Mac with macOS 11 or newer, download **BatteryBridge-macos-apple-silicon.pkg**, open it in Finder and follow Installer. Open **Applications → BatteryBridge** after installation. Updating closes the running app, restarts the service and keeps the saved charge policy. No Terminal commands are required.
 
-Installing over `v0.1.0-dev.1` preserves the saved charge policy. The installer closes the running app and restarts the service. Open the installed app after the update. A new installation starts with the charge limit off. The service starts after a reboot and continues running when the app closes.
+CLI, GUI and service use version `0.1.1`. The macOS bundle build is `3`; the Installer receipt is `0.1.1.3`. These versions replace `0.1.0` and the earlier preview without removing saved settings.
 
-### Distribution and hardware limitations
+Windows and Linux assets are developer archives with manual charging-service setup. `SHA256SUMS.txt` covers every downloadable asset.
 
-- **Unsigned macOS package:** this release is not Developer ID signed or notarized. If macOS blocks it, review its origin and use **System Settings → Privacy & Security → Open Anyway** only if you trust the package. Do not disable Gatekeeper. Organization-managed Macs may prohibit unsigned installers.
-- The graphical installer supports Apple Silicon Macs with macOS 11 or newer. Intel Mac charging control is unsupported. Only local administrator accounts can change the machine-wide charging policy.
-- Apple Silicon SMC and Lenovo WMI charge control remain experimental. Firmware can refuse a write; hardware errors appear in the app. Publication of this release does not certify every laptop or firmware version.
-- Windows and Linux downloads are developer archives with native GUI builds, CLI and service definitions. Charging-service installation on these platforms remains manual. Windows GUI installers do not install that service.
-- There is no automatic updater. To restore normal charging, use **Turn off** in the app. Deleting the GUI alone does not uninstall the service; see the service-removal guide in the included documentation.
+### Hardware and distribution limitations
 
-### Downloads and support
+Apple Silicon SMC and Lenovo WMI charge control remain experimental. The sleep-transition regression is covered by automated tests, but this release has not been validated through a real closed-lid charging cycle. Private SMC gates can be reset by firmware during sleep: this patch does not establish a firmware-managed limit or guarantee a closed-lid percentage cap. Firmware may also refuse writes while awake. A saved setting alone is not proof of enforcement.
 
-`SHA256SUMS.txt` contains checksums for all assets. The macOS `.pkg` is the complete graphical installer; the archives are for manual installations and developers. CLI, GUI and service all use version `0.1.0`; the macOS bundle build is `2` and the Installer receipt is `0.1.0.2`.
+The macOS package is unsigned and not notarized. If macOS blocks it, review its origin and use **System Settings → Privacy & Security → Open Anyway** only if you trust this release. Do not disable Gatekeeper. Intel Mac charging control is unsupported. Only local administrator accounts can change charging settings.
 
-For issues, include your OS version, device model and a reviewed compatibility report generated by the app. Reports exclude serial numbers and network identifiers. Avoid sharing additional personal data.
+To report a problem, include the OS version, device model and a reviewed compatibility report from the app. Reports exclude serial numbers and network identifiers.

@@ -82,7 +82,9 @@ The launcher, executables and configuration remain until removed separately. Use
 
 ### Remove the packaged macOS service
 
-First select **Turn off** in the app and verify that normal charging resumes. Quit BatteryBridge from its tray menu. Administrators can then remove the packaged service and app:
+In version 0.1.1 and newer, use **Uninstall BatteryBridge** at the bottom of the app. After confirmation, macOS requests administrator authorization. The uninstaller restores normal charging through the installed service before unloading it, then removes the app, helper binaries, launchd registration, saved policy and service log. It restarts a stopped service to restore charging first. A restoration or unload failure stops removal and displays the original error. If the service cannot access its controller, use the recovery instructions below before retrying.
+
+For version 0.1.0 or manual administration, first select **Turn off** in the app and verify that normal charging resumes. Quit BatteryBridge from its tray menu. Administrators can then remove the packaged service and app:
 
 ```sh
 sudo launchctl bootout system /Library/LaunchDaemons/io.github.batterybridge.plist

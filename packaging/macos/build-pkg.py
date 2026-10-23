@@ -90,7 +90,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build-dir", type=Path, default=REPO / "target/release")
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--version", default="0.1.0.2", help="Numeric Installer receipt version")
+    parser.add_argument("--version", default="0.1.1.3", help="Numeric Installer receipt version")
     args = parser.parse_args()
     output = args.output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)

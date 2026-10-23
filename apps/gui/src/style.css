@@ -509,3 +509,19 @@ a:hover {
     transition: none;
   }
 }
+
+.uninstall-setting {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+.uninstall-setting button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.uninstall-setting .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

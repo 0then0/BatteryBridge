@@ -20,7 +20,7 @@
   "settingsUnavailable": "Settings unavailable",
   "topUpActive": "Top-up active",
   "off": "Off",
-  "activeLimit": "{percent}% active",
+  "activeLimit": "{percent}% configured",
   "firstBattery": "Applies to the first battery. Other packs keep their own settings.",
   "stopAt": "Stop charging at",
   "stopPercentage": "Stop charging percentage",
@@ -75,6 +75,11 @@
   "installerAccess": "Only local administrator accounts can change charging settings. The service keeps running after the app closes and starts after a reboot.",
   "installerReady": "BatteryBridge is ready",
   "installerOpen": "Open Finder → Applications → BatteryBridge. Terminal commands are not needed. Choose a stop percentage and apply the limit.",
-  "installerFinish": "Use “Turn off” in the app to restore normal charging. Deleting the app alone does not remove the service.",
-  "installerUnsigned": "This package is unsigned and not notarized. If macOS blocks it, review its origin and use System Settings → Privacy & Security → Open Anyway only if you trust this release. Do not disable Gatekeeper."
+  "installerFinish": "Use “Uninstall BatteryBridge” in the app to remove the app and service and restore normal charging. Moving the app to Trash alone leaves the service installed.",
+  "installerUnsigned": "This package is unsigned and not notarized. If macOS blocks it, review its origin and use System Settings → Privacy & Security → Open Anyway only if you trust this release. Do not disable Gatekeeper.",
+  "limitExceeded": "Charging continues above the saved limit. The limit is not being enforced. Check the power source and device compatibility.",
+  "sleepNotice": "On this Mac, the service controls charging while awake. Firmware may reset the charging gate during sleep; a closed-lid limit cannot be guaranteed.",
+  "uninstall": "Uninstall BatteryBridge",
+  "uninstallConfirm": "Remove the app, background service and saved charging settings? Normal charging will be restored first. macOS will request an administrator password. If restoration fails, removal stops.",
+  "cancel": "Cancel"
 }

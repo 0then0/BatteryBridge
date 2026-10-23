@@ -20,7 +20,7 @@
   "settingsUnavailable": "Réglages indisponibles",
   "topUpActive": "Charge complète active",
   "off": "Désactivée",
-  "activeLimit": "Limite : {percent}%",
+  "activeLimit": "Limite enregistrée : {percent} %",
   "firstBattery": "S’applique à la première batterie. Les autres conservent leurs réglages.",
   "stopAt": "Arrêter la charge à",
   "stopPercentage": "Pourcentage d’arrêt de la charge",
@@ -75,6 +75,11 @@
   "installerAccess": "Seuls les administrateurs locaux peuvent modifier les réglages de charge. Le service reste actif après la fermeture de l’app et démarre après un redémarrage.",
   "installerReady": "BatteryBridge est prêt",
   "installerOpen": "Ouvrez Finder → Applications → BatteryBridge. Aucune commande Terminal n’est nécessaire. Choisissez un pourcentage d’arrêt et appliquez la limite.",
-  "installerFinish": "Utilisez « Désactiver » dans l’app pour rétablir la charge normale. Supprimer l’app ne supprime pas le service.",
-  "installerUnsigned": "Ce paquet n’est ni signé ni notarié par Apple. Si macOS le bloque, vérifiez son origine et autorisez son ouverture dans les réglages de confidentialité et de sécurité uniquement si vous faites confiance à cette version. Ne désactivez pas Gatekeeper."
+  "installerFinish": "Utilisez « Désinstaller BatteryBridge » dans l’application pour supprimer l’application et le service et rétablir la charge normale. Déplacer uniquement l’application dans la corbeille laisse le service installé.",
+  "installerUnsigned": "Ce paquet n’est ni signé ni notarié par Apple. Si macOS le bloque, vérifiez son origine et autorisez son ouverture dans les réglages de confidentialité et de sécurité uniquement si vous faites confiance à cette version. Ne désactivez pas Gatekeeper.",
+  "limitExceeded": "La charge continue au-delà de la limite enregistrée. La limite n’est pas respectée. Vérifiez l’alimentation et la compatibilité de l’appareil.",
+  "sleepNotice": "Sur ce Mac, le service contrôle la charge lorsque l’ordinateur est éveillé. Le micrologiciel peut réactiver la charge pendant la veille ; la limite n’est pas garantie avec le couvercle fermé.",
+  "uninstall": "Désinstaller BatteryBridge",
+  "uninstallConfirm": "Supprimer l’application, le service en arrière-plan et les réglages de charge ? La charge normale sera d’abord rétablie. macOS demandera un mot de passe administrateur. Si le rétablissement échoue, la désinstallation s’arrêtera.",
+  "cancel": "Annuler"
 }

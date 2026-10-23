@@ -73,6 +73,20 @@ impl Policy {
         self.discharge_target = Some(target);
         Ok(())
     }
+    /// Inhibit binary charging gates before sleep and preserve hysteresis on wake.
+    /// Native threshold controllers ignore `charging` and retain their thresholds.
+    pub fn prepare_sleep(&mut self, controller: &mut dyn ChargeController) -> Result<()> {
+        if self.discharge_target.is_some() {
+            controller.force_discharge(false)?;
+            self.discharge_target = None;
+        }
+        if self.config.charge_limit.is_some() && !self.top_up {
+            controller.charging(false)?;
+            self.inhibited = true;
+        }
+        Ok(())
+    }
+
     pub fn tick(
         &mut self,
         controller: &mut dyn ChargeController,
@@ -174,6 +188,49 @@ mod tests {
             hardware_start: None,
             hardware_stop: None,
         }
+    }
+    #[test]
+    fn sleep_preserves_inhibition_until_resume_threshold_without_releasing_limit() {
+        let mut f = Fake {
+            enabled: true,
+            stop: None,
+            discharge: false,
+        };
+        let mut p = Policy::default();
+        p.set_limit(Some(80), None, &f.capabilities()).unwrap();
+        p.tick(&mut f, &battery(78)).unwrap();
+        assert!(f.enabled);
+        p.prepare_sleep(&mut f).unwrap();
+        assert!(!f.enabled);
+        assert_eq!(f.stop, Some(80));
+        p.tick(&mut f, &battery(79)).unwrap();
+        assert!(!f.enabled, "wake must not reopen the gate inside the band");
+        p.tick(&mut f, &battery(75)).unwrap();
+        assert!(f.enabled);
+        p.top_up(&f.capabilities()).unwrap();
+        p.tick(&mut f, &battery(85)).unwrap();
+        p.prepare_sleep(&mut f).unwrap();
+        assert!(f.enabled, "explicit top-up remains allowed during sleep");
+    }
+    #[test]
+    fn sleep_cancels_forced_discharge_without_releasing_the_saved_limit() {
+        let mut f = Fake {
+            enabled: true,
+            stop: None,
+            discharge: false,
+        };
+        let mut p = Policy::default();
+        p.set_limit(Some(80), None, &f.capabilities()).unwrap();
+        p.tick(&mut f, &battery(90)).unwrap();
+        p.discharge(70, &f.capabilities()).unwrap();
+        p.tick(&mut f, &battery(90)).unwrap();
+        assert!(f.discharge);
+        p.prepare_sleep(&mut f).unwrap();
+        assert!(!f.discharge);
+        assert!(!f.enabled);
+        assert_eq!(f.stop, Some(80));
+        assert_eq!(p.discharge_target, None);
+        assert_eq!(p.config.charge_limit, Some(80));
     }
     #[test]
     fn hysteresis_top_up_and_restore() {

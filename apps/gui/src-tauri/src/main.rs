@@ -50,9 +50,59 @@ async fn request(command: Command) -> Result<Response, Error> {
     .await
     .map_err(|_| Error::PlatformError("IPC worker failed".into()))?
 }
+#[tauri::command]
+fn can_uninstall() -> bool {
+    cfg!(target_os = "macos")
+        && std::path::Path::new("/Library/PrivilegedHelperTools/io.github.batterybridge.service")
+            .exists()
+}
+
+#[tauri::command]
+async fn uninstall(app: tauri::AppHandle) -> Result<(), String> {
+    if !can_uninstall() {
+        return Err("The packaged macOS installation was not found.".into());
+    }
+    #[cfg(target_os = "macos")]
+    {
+        tauri::async_runtime::spawn_blocking(|| {
+            // No paths, commands or script text are accepted from the webview.
+            let script = include_str!("../../../../packaging/macos/uninstall.sh");
+            let quoted = script
+                .replace('\\', "\\\\")
+                .replace('"', "\\\"")
+                .replace('\n', "\\n");
+            let output = std::process::Command::new("/usr/bin/osascript")
+                .args([
+                    "-e",
+                    &format!("do shell script \"{quoted}\" with administrator privileges"),
+                ])
+                .output()
+                .map_err(|e| e.to_string())?;
+            if !output.status.success() {
+                return Err(String::from_utf8_lossy(&output.stderr).trim().to_owned());
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|e| e.to_string())??;
+        app.exit(0);
+        Ok(())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = app;
+        Err("Graphical uninstall is available only for the macOS package.".into())
+    }
+}
+
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![request, set_language])
+        .invoke_handler(tauri::generate_handler![
+            request,
+            set_language,
+            can_uninstall,
+            uninstall
+        ])
         .setup(|app| {
             let open = MenuItem::with_id(app, "open", "Open BatteryBridge", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit BatteryBridge", true, None::<&str>)?;

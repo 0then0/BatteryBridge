@@ -11,7 +11,7 @@ BatteryBridge is a battery charge-control tool for Linux, macOS and Windows. It 
 
 Available controls depend on your laptop's kernel driver, firmware and vendor interfaces. BatteryBridge detects these capabilities and explains which features are available on your device.
 
-**Release:** 0.1.0. CI tests and builds the project on all three operating systems. Apple Silicon SMC and Lenovo WMI charge control remain experimental and require device-level validation; see [hardware compatibility](docs/hardware.md) for the current support boundaries.
+**Release:** 0.1.1. CI tests and builds the project on all three operating systems. Apple Silicon SMC and Lenovo WMI charge control remain experimental and require device-level validation; see [hardware compatibility](docs/hardware.md) for the current support boundaries.
 
 ## Features
 
@@ -22,6 +22,25 @@ Available controls depend on your laptop's kernel driver, firmware and vendor in
 - Inspect device capabilities and export a compatibility report.
 - Use the CLI independently of the tray app.
 - Use the desktop app in English, Russian, Spanish, German, French, Japanese or Brazilian Portuguese, with system light/dark appearance.
+
+## Downloads
+
+<!-- downloads:start -->
+
+Direct downloads for stable release [v0.1.0](https://github.com/0then0/BatteryBridge/releases/tag/v0.1.0):
+
+| Platform | Architecture | Download | Installation |
+| --- | --- | --- | --- |
+| macOS 11+ | Apple Silicon (arm64) | [Installer (.pkg)](https://github.com/0then0/BatteryBridge/releases/download/v0.1.0/BatteryBridge-macos-apple-silicon.pkg) | App and background service; no Terminal required |
+| macOS 11+ | Apple Silicon (arm64) | [Developer archive (.tar.gz)](https://github.com/0then0/BatteryBridge/releases/download/v0.1.0/batterybridge-macos-aarch64.tar.gz) | Manual service setup |
+| Windows | x86_64 | [Developer archive (.zip)](https://github.com/0then0/BatteryBridge/releases/download/v0.1.0/batterybridge-windows-x86_64.zip) | Manual service setup |
+| Linux | x86_64 | [Developer archive (.tar.gz)](https://github.com/0then0/BatteryBridge/releases/download/v0.1.0/batterybridge-linux-x86_64.tar.gz) | Manual service setup |
+
+[SHA-256 checksums](https://github.com/0then0/BatteryBridge/releases/download/v0.1.0/SHA256SUMS.txt) · [Installation instructions](docs/install.md)
+
+The macOS installer is unsigned and not notarized. Intel Mac charge control is unsupported. Windows and Linux archives are intended for users comfortable with manual service installation.
+
+<!-- downloads:end -->
 
 ## Getting started
 

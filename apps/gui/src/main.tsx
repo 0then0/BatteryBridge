@@ -3,10 +3,12 @@ import { createRoot } from "react-dom/client";
 import {
   available,
   type Command,
+  canUninstall,
   describeError,
   request,
   type Snapshot,
   setTrayLanguage,
+  uninstall,
 } from "./api";
 import {
   batteryState,
@@ -19,6 +21,7 @@ import {
   resolveLocale,
   translate,
 } from "./i18n";
+import { chargingAboveLimit } from "./policy-status";
 import "./style.css";
 
 function App() {
@@ -48,6 +51,14 @@ function App() {
       console.error("Tray language update failed", error),
     );
   }, [locale]);
+  const [uninstallAvailable, setUninstallAvailable] = useState(false);
+  const [confirmUninstall, setConfirmUninstall] = useState(false);
+  const [uninstallError, setUninstallError] = useState<unknown>(null);
+  useEffect(() => {
+    void canUninstall()
+      .then(setUninstallAvailable)
+      .catch(() => {});
+  }, []);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [updated, setUpdated] = useState(false);
@@ -223,6 +234,14 @@ function App() {
       )}
       {caps?.charge_limit.state === "experimental" && (
         <p className="notice">{t("experimentalNotice")}</p>
+      )}
+      {chargingAboveLimit(snapshot) && (
+        <p className="notice error" role="alert">
+          {t("limitExceeded")}
+        </p>
+      )}
+      {snapshot?.backend === "Apple Silicon SMC" && (
+        <p className="notice">{t("sleepNotice")}</p>
       )}
       {updated && (
         <p className="notice" role="status">
@@ -465,6 +484,54 @@ function App() {
           ))}
         </select>
       </div>
+      {uninstallAvailable && (
+        <section className="uninstall-setting">
+          {confirmUninstall ? (
+            <>
+              <p>{t("uninstallConfirm")}</p>
+              <div className="actions">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    mutating.current = true;
+                    ++generation.current;
+                    setBusy(true);
+                    setUninstallError(null);
+                    void uninstall().catch((e: unknown) => {
+                      setUninstallError(e);
+                      mutating.current = false;
+                      setBusy(false);
+                    });
+                  }}
+                >
+                  {t("uninstall")}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setConfirmUninstall(false)}
+                >
+                  {t("cancel")}
+                </button>
+              </div>
+            </>
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setConfirmUninstall(true)}
+            >
+              {t("uninstall")}
+            </button>
+          )}
+          {uninstallError != null && (
+            <p className="notice error" role="alert">
+              {describeError(uninstallError, t("requestFailed"))}
+            </p>
+          )}
+        </section>
+      )}
       <footer>{t("footer")}</footer>
     </main>
   );

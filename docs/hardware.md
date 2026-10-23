@@ -27,7 +27,7 @@ Battery status is read through IOKit. Experimental charging control uses the pri
 
 Temporary full charge is available when a compatible gate is found. Force discharge additionally requires a compatible `CH0I` key. Firmware may remove keys or deny writes, including privileged writes. Firmware-managed `bf*` limits are not implemented. Intel Mac charge control is unsupported; monitoring can still work.
 
-On sleep, the service releases adapter isolation before acknowledging IOKit. With a saved limit and no top-up, it then requests charging inhibition. Policy is reconciled on wake. Firmware may reset gate state during sleep or shutdown, so percentage limits cannot be guaranteed in those states. Abrupt process termination can leave a gate latched until the service restarts.
+On sleep, the service cancels temporary forced discharge without removing the saved limit. With a saved limit and no top-up, it requests charging inhibition before acknowledging IOKit. That inhibition is retained on wake until the battery reaches the resume threshold. Sleep-preparation errors remain in status until a subsequent successful sleep preparation or service restart. Firmware may reset gate state during sleep or shutdown, so percentage limits cannot be guaranteed in those states. Abrupt process termination can leave a gate latched until the service restarts. The UI labels the saved percentage as configured, not verified enforcement, and warns when live telemetry reports charging above it outside an explicit top-up. A high percentage while discharging is not evidence of continued charging.
 
 ## Windows: Lenovo WMI
 

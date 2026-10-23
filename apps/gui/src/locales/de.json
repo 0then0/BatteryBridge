@@ -20,7 +20,7 @@
   "settingsUnavailable": "Einstellungen nicht verfügbar",
   "topUpActive": "Vollladung aktiv",
   "off": "Aus",
-  "activeLimit": "Limit: {percent}%",
+  "activeLimit": "Gespeichert: {percent}%",
   "firstBattery": "Gilt für den ersten Akku. Die Einstellungen anderer Akkus bleiben erhalten.",
   "stopAt": "Laden beenden bei",
   "stopPercentage": "Prozentwert zum Beenden des Ladens",
@@ -75,6 +75,11 @@
   "installerAccess": "Nur lokale Administratoren können die Ladeeinstellungen ändern. Der Dienst läuft nach dem Schließen der App weiter und startet nach einem Neustart.",
   "installerReady": "BatteryBridge ist bereit",
   "installerOpen": "Öffne Finder → Programme → BatteryBridge. Terminalbefehle sind nicht erforderlich. Wähle einen Stoppwert und wende das Limit an.",
-  "installerFinish": "Mit „Ausschalten“ in der App wird das normale Laden wiederhergestellt. Das Löschen der App entfernt den Dienst nicht.",
-  "installerUnsigned": "Dieses Paket ist weder signiert noch von Apple notarisiert. Wenn macOS es blockiert, prüfe die Herkunft und erlaube das Öffnen in den Datenschutz- und Sicherheitseinstellungen nur, wenn du dieser Version vertraust. Deaktiviere Gatekeeper nicht."
+  "installerFinish": "Mit «BatteryBridge deinstallieren» in der App entfernst du App und Dienst und stellst normales Laden wieder her. Das Verschieben der App in den Papierkorb entfernt den Dienst nicht.",
+  "installerUnsigned": "Dieses Paket ist weder signiert noch von Apple notarisiert. Wenn macOS es blockiert, prüfe die Herkunft und erlaube das Öffnen in den Datenschutz- und Sicherheitseinstellungen nur, wenn du dieser Version vertraust. Deaktiviere Gatekeeper nicht.",
+  "limitExceeded": "Der Akku lädt über das gespeicherte Limit hinaus. Das Limit wird nicht eingehalten. Prüfe die Stromversorgung und die Gerätekompatibilität.",
+  "sleepNotice": "Auf diesem Mac steuert der Dienst das Laden im Wachzustand. Die Firmware kann die Ladesperre im Ruhezustand zurücksetzen; das Limit bei geschlossenem Deckel ist nicht garantiert.",
+  "uninstall": "BatteryBridge deinstallieren",
+  "uninstallConfirm": "App, Hintergrunddienst und gespeicherte Ladeeinstellungen entfernen? Zuerst wird normales Laden wiederhergestellt. macOS fragt nach einem Administratorpasswort. Schlägt die Wiederherstellung fehl, wird die Deinstallation abgebrochen.",
+  "cancel": "Abbrechen"
 }
