@@ -34,6 +34,12 @@ $task = Get-ScheduledTask -TaskName 'BatteryBridge'
 if ($task.Principal.UserId -notin @('SYSTEM','S-1-5-18')) { throw 'Task must run as SYSTEM' }
 Get-Process batterybridge-gui -ErrorAction SilentlyContinue | Stop-Process -Force
 Invoke-Installer -FilePath (Join-Path $installed 'uninstall.exe')
+# NSIS copies its uninstaller to a temporary child process before removing itself.
+# Wait for that child's observable result as well as the original process exit.
+$deadline = [DateTime]::UtcNow.AddSeconds(30)
+while ((Test-Path (Join-Path $installed 'service/batterybridge-service.exe')) -and [DateTime]::UtcNow -lt $deadline) {
+    Start-Sleep -Milliseconds 200
+}
 if (Get-ScheduledTask -TaskName 'BatteryBridge' -ErrorAction SilentlyContinue) { throw 'Background task survived removal' }
 if (Test-Path (Join-Path $installed 'service/batterybridge-service.exe')) { throw 'Daemon executable survived removal' }
 if (Test-Path (Join-Path $env:ProgramData 'BatteryBridge')) { throw 'Saved settings survived removal' }
