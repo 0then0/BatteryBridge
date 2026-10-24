@@ -67,7 +67,7 @@ def build_rpm(build, output):
         payload = work / 'payload'
         stage(payload, build, 'rpm')
         spec = [f'Name: BatteryBridge\nVersion: {VERSION}\nRelease: 1\nSummary: Device-aware battery charge control\n'
-                'License: Apache-2.0 AND MIT AND OFL-1.1\nURL: https://github.com/0then0/BatteryBridge\n'
+                'License: Apache-2.0 AND MIT AND OFL-1.1 AND BSD-3-Clause\nURL: https://github.com/0then0/BatteryBridge\n'
                 'BuildArch: x86_64\nRequires: ' + ', '.join(RPM_DEPENDS) + '\nRecommends: google-noto-sans-cjk-jp-fonts\n'
                 '%description\nNative desktop app, CLI and charging policy service.\n'
                 f'%install\nmkdir -p "%{{buildroot}}"\ncp -a {shlex.quote(str(payload))}/. "%{{buildroot}}/"\n']

@@ -4,7 +4,7 @@
 
 ## Privilege boundary
 
-The background service owns the writable charge controller and machine-wide policy. CLI and GUI run as ordinary applications. They request a fixed set of operations: status, capabilities, compatibility reports, configuration reads, validated limits, temporary top-up and bounded discharge.
+The background service owns the writable charge controller and machine-wide policy. CLI and GUI run as ordinary applications. They request a fixed set of operations: status, capabilities, compatibility reports, configuration reads, validated limits, temporary charging operations, bounded discharge, calibration and calendar care settings.
 
 The service exposes local IPC only. Its commands accept typed charging settings rather than shell commands, filesystem paths, SMC keys or WMI method names. Both clients and service validate request values, and each backend checks its hardware-specific constraints.
 
@@ -20,7 +20,7 @@ The Windows installer rejects reparse points and trees owned by other users befo
 
 ## Protocol
 
-The current request protocol is version 2. Messages are Serde JSON with a four-byte big-endian length prefix and a maximum payload of 64 KiB. Frame reads and writes each have a three-second deadline. On Windows, an empty nonblocking transfer waits for progress within that deadline. Connections are configured once before exchanging frames.
+The current request protocol is version 3. Messages are Serde JSON with a four-byte big-endian length prefix and a maximum payload of 64 KiB. Frame reads and writes each have a three-second deadline. On Windows, an empty nonblocking transfer waits for progress within that deadline. Connections are configured once before exchanging frames.
 
 At most eight accepted requests wait for the single policy thread. Hardware operations are serialized. The listener blocks while idle, and the policy thread waits for requests, power events or its 30-second reconciliation interval. Client traffic does not indefinitely postpone policy reconciliation. On macOS, queued mutations are rejected while the service handles sleep.
 
@@ -38,7 +38,7 @@ Writes use an exclusively created, synced sibling file and same-filesystem repla
 
 Private SMC interfaces can reject writes even with root privileges. Read-only discovery does not establish write permission. Platform authorization and firmware protections remain in effect.
 
-Force discharge has a minimum target of 20%. There is no public indefinite adapter-disable command. The service releases isolation before macOS sleep and on orderly shutdown. Firmware changes and abrupt termination can still affect charging state; supervised validation is described in the [hardware guide](hardware.md#device-validation).
+Manual and automatic discharge have a minimum target of 20%. The explicitly requested calibration cycle alone may discharge to 10%. Adapter disable is bounded by the same 20% floor; indefinite isolation is not exposed. The service releases isolation before macOS sleep and on orderly shutdown. Firmware changes and abrupt termination can still affect charging state; supervised validation is described in the [hardware guide](hardware.md#device-validation).
 
 ## Diagnostic privacy
 
@@ -61,3 +61,7 @@ Compatibility reports are exported by the ordinary-user GUI. Saving creates a
 new file and refuses to overwrite an existing destination. Graphical macOS
 uninstall executes only the embedded, fixed removal script after administrator
 authentication; no file path or script from the UI is passed to that helper.
+
+Care settings and scheduled actions use the existing local authorization boundary. Schedules accept only typed operations, not shell commands, paths or URLs. At most 16 entries with unique IDs are accepted. Updating care settings checks the expected previous value to prevent stale clients from reactivating completed tasks. No web/deep-link mutation endpoint is exposed for Shortcuts.
+
+Temperature protection uses battery telemetry only. Missing temperature inhibits charging while protection is enabled; this is a software check at the normal awake reconciliation interval, not a replacement for firmware thermal protection. The macOS idle-sleep assertion is scoped to the service process and is released on cancellation or exit; global power settings are unchanged. Lid-close and manual sleep remain possible.

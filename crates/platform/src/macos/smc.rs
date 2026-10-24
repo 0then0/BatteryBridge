@@ -209,6 +209,9 @@ impl Smc {
                 },
             );
         }
+        if self.read(*b"CH0B", 1).is_err() {
+            return self.write(*b"CH0C", &[u8::from(!enabled)]);
+        }
         self.read(*b"CH0B", 1)?;
         self.read(*b"CH0C", 1)?;
         let v = if enabled { 0 } else { 2 };
@@ -220,8 +223,29 @@ impl Smc {
         }
         Ok(())
     }
+    pub fn led(&self, mode: LedMode) -> Result<()> {
+        let value = match mode {
+            LedMode::System => 0,
+            LedMode::Off => 1,
+            LedMode::Green => 3,
+            LedMode::Orange => 4,
+            LedMode::SlowBlinkOrange => 6,
+            LedMode::FastBlinkOrange => 7,
+            LedMode::Automatic => {
+                return Err(Error::ProtocolError(
+                    "LED automatic mode must be resolved by policy".into(),
+                ));
+            }
+        };
+        self.write(*b"ACLC", &[value])
+    }
     pub fn discharge(&self, enabled: bool) -> Result<()> {
-        self.write(*b"CH0I", &[u8::from(enabled)])
+        for (key, disabled) in [(*b"CHIE", 0x08), (*b"CH0J", 0x20), (*b"CH0I", 1)] {
+            if self.read(key, 1).is_ok() {
+                return self.write(key, &[if enabled { disabled } else { 0 }]);
+            }
+        }
+        Err(Error::Unsupported("SMC adapter gate".into()))
     }
 }
 #[cfg(test)]

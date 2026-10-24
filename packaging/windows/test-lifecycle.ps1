@@ -4,6 +4,7 @@ $ErrorActionPreference = 'Stop'
 $root = Join-Path ([IO.Path]::GetTempPath()) ("batterybridge-lifecycle-" + [Guid]::NewGuid())
 $script:task = $null
 $script:events = [Collections.Generic.List[string]]::new()
+$script:version = 1
 $script:limit = 80
 $script:failRestore = $false
 function Get-ScheduledTask { param($TaskName, $ErrorAction); return $script:task }
@@ -19,9 +20,9 @@ function Register-ScheduledTask {
     $script:events.Add('register')
     $script:task = [pscustomobject]@{ State = 'Ready'; Action = $Action }
 }
-function Read-BatteryBridgeConfig { param($Client); $script:events.Add('probe'); return @{ charge_limit = $script:limit } }
+function Read-BatteryBridgeConfig { param($Client); $script:events.Add('probe'); return @{ version = $script:version; charge_limit = $script:limit } }
 function Restore-BatteryBridgeCharging {
-    param($Client)
+    param($Client, $Config)
     $script:events.Add('restore')
     if ($script:failRestore) { throw 'fixture: restore failed' }
     $script:limit = $null
@@ -53,6 +54,14 @@ try {
     if ($script:events.IndexOf('restore') -ge $script:events.IndexOf('stop')) { throw 'Task stopped before restoring charging' }
     if ($null -ne $script:task) { throw 'Task still registered' }
     Remove-BatteryBridgeTask -Destination $destination # Already absent is harmless.
+    # A format-2 installation can have pending schedules even with its limit off.
+    $script:version = 2
+    $script:limit = $null
+    $script:task = [pscustomobject]@{ State = 'Running' }
+    $script:events.Clear()
+    Remove-BatteryBridgeTask -Destination $destination
+    if (-not $script:events.Contains('restore')) { throw 'Care schedules were not reset before removal' }
+    if ($script:events.IndexOf('restore') -ge $script:events.IndexOf('stop')) { throw 'Schedule reset happened after task stop' }
     Write-Output 'Windows lifecycle checks: passed'
 } finally {
     if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }

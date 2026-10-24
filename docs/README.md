@@ -15,6 +15,7 @@ For graphical installation on each supported platform, start with [Install Batte
 
 - [Building from source](build.md): prerequisites, CLI, service and desktop builds.
 - [Using BatteryBridge](usage.md): commands, tray behavior and compatibility reports.
+- [Battery care and schedules](battery-care.md): temporary operations, temperature protection, calibration, telemetry and automation.
 - [Configuration and charging policies](configuration.md): thresholds, top-up and persistence.
 - [Service installation and recovery](service.md): systemd, launchd and Windows Task Scheduler.
 - [Hardware compatibility and validation](hardware.md): backend capabilities, limitations and device testing.

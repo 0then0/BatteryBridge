@@ -9,6 +9,7 @@ readme.workspace = true
 description = "Native battery status and charging settings built with egui."
 
 [dependencies]
+chrono.workspace = true
 batterybridge-protocol.workspace = true
 batterybridge-ipc.workspace = true
 batterybridge-platform.workspace = true

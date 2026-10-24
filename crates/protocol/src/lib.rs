@@ -4,11 +4,14 @@
 
 #![forbid(unsafe_code)]
 
+mod care;
+pub use care::*;
+
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// Request version accepted by matching BatteryBridge clients and service.
-pub const PROTOCOL_VERSION: u32 = 2;
+pub const PROTOCOL_VERSION: u32 = 3;
 /// Maximum JSON payload size in bytes, excluding the four-byte frame header.
 pub const MAX_FRAME: usize = 64 * 1024;
 pub type Result<T> = std::result::Result<T, Error>;
@@ -60,6 +63,11 @@ pub struct Capability {
     pub state: CapabilityState,
     pub reason: String,
 }
+impl Default for Capability {
+    fn default() -> Self {
+        Self::unsupported("not exposed by this backend")
+    }
+}
 impl Capability {
     pub fn supported(reason: impl Into<String>) -> Self {
         Self {
@@ -101,6 +109,14 @@ pub struct Capabilities {
     pub force_discharge: Capability,
     pub adapter_disable: Capability,
     pub temporary_full_charge: Capability,
+    #[serde(default)]
+    pub manual_charging: Capability,
+    #[serde(default)]
+    pub heat_protection: Capability,
+    #[serde(default)]
+    pub magsafe_led: Capability,
+    #[serde(default)]
+    pub sleep_prevention: Capability,
     /// None means a continuous range 1..=100; Some restricts accepted limits.
     pub allowed_limits: Option<Vec<u8>>,
 }
@@ -113,11 +129,15 @@ impl Capabilities {
             stop_threshold: c.clone(),
             force_discharge: c.clone(),
             adapter_disable: c.clone(),
-            temporary_full_charge: c,
+            temporary_full_charge: c.clone(),
+            manual_charging: c.clone(),
+            heat_protection: c.clone(),
+            magsafe_led: c.clone(),
+            sleep_prevention: c,
             allowed_limits: None,
         }
     }
-    pub fn entries(&self) -> [(&str, &Capability); 6] {
+    pub fn entries(&self) -> [(&str, &Capability); 10] {
         [
             ("Charge limit", &self.charge_limit),
             ("Start threshold", &self.start_threshold),
@@ -125,6 +145,10 @@ impl Capabilities {
             ("Force discharge", &self.force_discharge),
             ("Adapter disable", &self.adapter_disable),
             ("Top up", &self.temporary_full_charge),
+            ("Manual charging", &self.manual_charging),
+            ("Heat protection", &self.heat_protection),
+            ("MagSafe LED", &self.magsafe_led),
+            ("Sleep prevention", &self.sleep_prevention),
         ]
     }
 }
@@ -139,6 +163,8 @@ pub struct BatteryStatus {
     pub on_ac: Option<bool>,
     pub hardware_start: Option<u8>,
     pub hardware_stop: Option<u8>,
+    #[serde(default)]
+    pub telemetry: BatteryTelemetry,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DeviceInfo {
@@ -177,16 +203,19 @@ pub struct Config {
     pub version: u32,
     pub charge_limit: Option<u8>,
     pub start_threshold: StartThreshold,
+    #[serde(default)]
+    pub care: CareSettings,
 }
 impl Default for Config {
     fn default() -> Self {
         Self {
-            version: 1,
+            version: 2,
             charge_limit: None,
             start_threshold: StartThreshold {
                 enabled: false,
                 value: 75,
             },
+            care: CareSettings::default(),
         }
     }
 }
@@ -203,6 +232,8 @@ pub struct Snapshot {
     pub top_up_active: bool,
     pub discharge_target: Option<u8>,
     pub last_error: Option<Error>,
+    #[serde(default)]
+    pub runtime: RuntimeStatus,
 }
 /// Fixed operations accepted by the service; charging values are validated before use.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -212,9 +243,31 @@ pub enum Command {
     Capabilities,
     Probe,
     Config,
-    Limit { stop: Option<u8>, start: Option<u8> },
+    Limit {
+        stop: Option<u8>,
+        start: Option<u8>,
+    },
     TopUp,
-    Discharge { target: u8 },
+    Discharge {
+        target: u8,
+    },
+    ChargeTo {
+        target: u8,
+    },
+    StopCharging,
+    Pause,
+    Resume,
+    Cancel,
+    /// Release all controls and durably disable limits, care settings and schedules.
+    Reset,
+    Calibrate,
+    Adapter {
+        enabled: bool,
+    },
+    Care {
+        settings: CareSettings,
+        expected: CareSettings,
+    },
 }
 impl Command {
     pub fn validate(&self) -> Result<()> {
@@ -229,6 +282,8 @@ impl Command {
                     return Err(Error::InvalidLimit("start must be below stop".into()));
                 }
             }
+            Self::ChargeTo { target } => percent(*target)?,
+            Self::Care { settings, .. } => settings.validate()?,
             Self::Discharge { target } => {
                 percent(*target)?;
                 if *target < 20 {
@@ -272,16 +327,83 @@ impl Request {
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum Response {
     Status(Box<Snapshot>),
-    Capabilities(Capabilities),
+    Capabilities(Box<Capabilities>),
     Probe(Box<ProbeReport>),
     Config(Config),
     Ok,
     Error(Error),
 }
 
+impl CareSettings {
+    pub fn validate(&self) -> Result<()> {
+        if self.heat_limit_c.is_some_and(|c| !(25..=60).contains(&c)) {
+            return Err(Error::ConfigurationError(
+                "heat limit must be 25..60°C".into(),
+            ));
+        }
+        if self.schedules.len() > 16 {
+            return Err(Error::ConfigurationError("at most 16 schedules".into()));
+        }
+        let mut ids = std::collections::BTreeSet::new();
+        for schedule in &self.schedules {
+            if !ids.insert(schedule.id)
+                || !(1..=253_402_300_799).contains(&schedule.next_at)
+                || schedule
+                    .anchor_at
+                    .is_some_and(|at| !(1..=schedule.next_at).contains(&at))
+            {
+                return Err(Error::ConfigurationError(
+                    "duplicate schedule id or invalid timestamp".into(),
+                ));
+            }
+            match schedule.action {
+                ScheduleAction::Limit { stop, start } => Command::Limit {
+                    stop: Some(stop),
+                    start,
+                }
+                .validate()?,
+                ScheduleAction::ChargeTo { target } => Command::ChargeTo { target }.validate()?,
+                ScheduleAction::Discharge { target } => Command::Discharge { target }.validate()?,
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn care_validates_bounds_duplicate_ids_and_calibration_floor_stays_private() {
+        let task = Schedule {
+            id: 1,
+            enabled: true,
+            next_at: 1000,
+            anchor_at: None,
+            repeat: Repeat::Once,
+            action: ScheduleAction::Discharge { target: 10 },
+        };
+        let mut care = CareSettings {
+            schedules: vec![task],
+            ..CareSettings::default()
+        };
+        assert!(care.validate().is_err());
+        care.schedules[0].action = ScheduleAction::Calibrate;
+        assert!(care.validate().is_ok());
+        care.schedules.push(care.schedules[0].clone());
+        assert!(care.validate().is_err());
+        care.schedules.clear();
+        care.heat_limit_c = Some(24);
+        assert!(care.validate().is_err());
+        care.heat_limit_c = Some(35);
+        assert!(care.validate().is_ok());
+        assert!(
+            serde_json::from_str::<CareSettings>(r#"{"heat_limit_c":35,"smc_key":"ACLC"}"#)
+                .is_err()
+        );
+    }
+
     #[test]
     fn validates_untrusted_requests() {
         assert!(

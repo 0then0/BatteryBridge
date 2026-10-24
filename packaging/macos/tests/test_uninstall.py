@@ -22,7 +22,7 @@ class UninstallTests(unittest.TestCase):
         service = helpers / "io.github.batterybridge.service"
         service.touch()
         client = helpers / "io.github.batterybridge.cli"
-        client.write_text(f'#!/bin/sh\necho "client $*" >> "{trace}"\ncase "$1" in limit) exit {limit};; config) exit {config};; esac\n')
+        client.write_text(f'#!/bin/sh\necho "client $*" >> "{trace}"\ncase "$1" in reset) exit {limit};; config) exit {config};; esac\n')
         client.chmod(0o755)
         if link:
             service.unlink()
@@ -63,14 +63,14 @@ class UninstallTests(unittest.TestCase):
             with self.subTest(loaded=loaded), tempfile.TemporaryDirectory() as directory:
                 result, trace, app, state = self.run_uninstall(Path(directory), loaded=loaded)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertLess(trace.index("client limit off"), trace.index("launchctl bootout"))
+                self.assertLess(trace.index("client reset"), trace.index("launchctl bootout"))
                 self.assertLess(trace.index("launchctl bootout"), trace.index("rm -f"))
                 self.assertFalse(app.exists())
                 self.assertFalse(state.exists())
                 self.assertFalse((Path(directory) / "helpers/io.github.batterybridge.service").exists())
                 self.assertIn("pkgutil --forget", trace)
                 if not loaded:
-                    self.assertLess(trace.index("launchctl bootstrap"), trace.index("client limit off"))
+                    self.assertLess(trace.index("launchctl bootstrap"), trace.index("client reset"))
 
     def test_restoration_or_unload_failure_preserves_installation(self):
         for failure in ({"limit": 1}, {"bootout": 1}, {"loaded": False, "config": 1}, {"loaded": False, "bootstrap": 1}):
@@ -86,6 +86,6 @@ class UninstallTests(unittest.TestCase):
             with self.subTest(invalid=invalid), tempfile.TemporaryDirectory() as directory:
                 result, trace, app, _ = self.run_uninstall(Path(directory), **invalid)
                 self.assertNotEqual(result.returncode, 0)
-                self.assertNotIn("client limit", trace)
+                self.assertNotIn("client reset", trace)
                 self.assertNotIn("rm -", trace)
                 self.assertTrue(app.exists())

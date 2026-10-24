@@ -1,5 +1,5 @@
 //! UI policy and editable draft. The daemon remains the source of truth.
-use batterybridge_protocol::{Command, Error, Snapshot};
+use batterybridge_protocol::{CareSettings, Command, Error, Snapshot};
 
 #[derive(Debug)]
 pub struct Model {
@@ -10,6 +10,11 @@ pub struct Model {
     pub edited: bool,
     pub error: Option<String>,
     pub updated: bool,
+    pub care: CareSettings,
+    pub care_base: CareSettings,
+    pub care_edited: bool,
+    pub raw_percent: bool,
+    pub history: std::collections::VecDeque<(i64, u8)>,
 }
 impl Default for Model {
     fn default() -> Self {
@@ -21,6 +26,11 @@ impl Default for Model {
             edited: false,
             error: None,
             updated: false,
+            care: CareSettings::default(),
+            care_base: CareSettings::default(),
+            care_edited: false,
+            raw_percent: false,
+            history: std::collections::VecDeque::new(),
         }
     }
 }
@@ -54,6 +64,23 @@ impl Model {
                 .config
                 .as_ref()
                 .map_or(75, |c| c.start_threshold.value);
+        }
+        if !self.care_edited {
+            self.care = snapshot
+                .config
+                .as_ref()
+                .map(|c| c.care.clone())
+                .unwrap_or_default();
+            self.care_base = self.care.clone();
+        }
+        if let Some(percent) = snapshot.batteries.first().and_then(|b| b.percent) {
+            let now = chrono::Utc::now().timestamp();
+            if self.history.back().is_none_or(|(at, _)| now > *at) {
+                self.history.push_back((now, percent));
+                if self.history.len() > 240 {
+                    self.history.pop_front();
+                }
+            }
         }
         self.snapshot = Some(snapshot);
         self.error = None;
@@ -95,7 +122,10 @@ pub fn charging_above_limit(snapshot: &Snapshot) -> bool {
         .as_ref()
         .and_then(|config| config.charge_limit)
         .is_some_and(|stop| {
-            !snapshot.top_up_active
+            !snapshot.runtime.paused
+                && snapshot.runtime.charge_target.is_none()
+                && snapshot.runtime.calibration.is_none()
+                && !snapshot.top_up_active
                 && snapshot.discharge_target.is_none()
                 && snapshot.batteries.first().is_some_and(|battery| {
                     battery.percent.is_some_and(|p| p > stop)
@@ -150,5 +180,21 @@ pub(crate) mod tests {
         model.stop = 80;
         model.use_start = true;
         assert!(model.limit_command().is_err());
+    }
+    #[test]
+    fn refresh_preserves_unsaved_care_and_the_original_compare_value() {
+        let mut model = Model::default();
+        model.accept(fixture());
+        let original = model.care_base.clone();
+        model.care.heat_limit_c = Some(35);
+        model.care_edited = true;
+        let mut updated = fixture();
+        updated.config.as_mut().unwrap().care.prevent_sleep = true;
+        model.accept(updated);
+        assert_eq!(model.care.heat_limit_c, Some(35));
+        assert_eq!(model.care_base, original);
+        model.care_edited = false;
+        model.accept(fixture());
+        assert_eq!(model.care, model.care_base);
     }
 }

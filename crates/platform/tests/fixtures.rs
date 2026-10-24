@@ -194,3 +194,35 @@ fn intel_bclm_uses_firmware_thresholds_and_rejects_unsupported_inputs() {
     policy.top_up(&report.capabilities).unwrap();
     policy.set_limit(None, None, &report.capabilities).unwrap();
 }
+
+#[test]
+fn modern_smc_adapter_and_led_features_require_gate_and_real_temperature() {
+    let mut fixture: Fixture = serde_json::from_str(include_str!(
+        "../../../tests/fixtures/macos-apple-silicon.json"
+    ))
+    .unwrap();
+    fixture.facts.interfaces.clear();
+    for key in ["SMC:CH0C", "SMC:CHIE", "SMC:ACLC"] {
+        fixture
+            .facts
+            .interfaces
+            .insert(key.into(), "available".into());
+    }
+    let report = resolve(Facts {
+        device: fixture.facts.device.clone(),
+        batteries: fixture.facts.batteries.clone(),
+        interfaces: fixture.facts.interfaces.clone(),
+    });
+    assert!(report.capabilities.force_discharge.available());
+    assert!(report.capabilities.adapter_disable.available());
+    assert!(report.capabilities.manual_charging.available());
+    assert!(report.capabilities.magsafe_led.available());
+    assert!(!report.capabilities.heat_protection.available());
+    fixture.facts.batteries[0].telemetry.temperature_deci_c = Some(300);
+    assert!(
+        resolve(fixture.facts)
+            .capabilities
+            .heat_protection
+            .available()
+    );
+}

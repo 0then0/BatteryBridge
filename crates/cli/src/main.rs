@@ -39,6 +39,27 @@ enum CliCommand {
     },
     /// Temporarily charge to 100%, then restore the saved limit.
     TopUp,
+    /// Charge to a temporary target and hold it until cancelled. Saved limit is unchanged.
+    ChargeTo { target: u8 },
+    /// Stop charging immediately, preserving the saved policy.
+    Hold,
+    /// Release hardware controls temporarily, preserving all saved settings.
+    Pause,
+    /// Restore the saved policy and cancel temporary operations.
+    Resume,
+    /// Cancel a temporary operation and restore the saved policy.
+    Cancel,
+    /// Restore normal charging and permanently disable all limits, care and schedules.
+    Reset,
+    /// Run a 100% -> 10% -> 100% cycle, rest for one hour, then restore the saved policy.
+    Calibrate,
+    /// Disable the adapter until 20%, or restore the saved policy ('on').
+    Adapter { value: String },
+    /// Display care settings, or replace them from a JSON file (including schedules).
+    Care {
+        #[arg(long)]
+        file: Option<std::path::PathBuf>,
+    },
     /// Discharge to a target when the device supports force discharge.
     Discharge {
         /// Target percentage (20..100).
@@ -78,6 +99,42 @@ fn run() -> Result<()> {
             start,
         },
         CliCommand::TopUp => Command::TopUp,
+        CliCommand::ChargeTo { target } => Command::ChargeTo { target },
+        CliCommand::Hold => Command::StopCharging,
+        CliCommand::Pause => Command::Pause,
+        CliCommand::Resume => Command::Resume,
+        CliCommand::Cancel => Command::Cancel,
+        CliCommand::Reset => Command::Reset,
+        CliCommand::Calibrate => Command::Calibrate,
+        CliCommand::Adapter { value } => Command::Adapter {
+            enabled: match value.as_str() {
+                "on" => true,
+                "off" => false,
+                _ => return Err(Error::ProtocolError("adapter expects on or off".into())),
+            },
+        },
+        CliCommand::Care { file } => {
+            let Response::Config(config) =
+                batterybridge_platform::client::query(Command::Config, ipc::call)?
+            else {
+                return Err(Error::ProtocolError("expected configuration".into()));
+            };
+            let Some(file) = file else {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&config.care)
+                        .map_err(|e| Error::ProtocolError(e.to_string()))?
+                );
+                return Ok(());
+            };
+            let source = std::fs::read(file).map_err(|e| Error::io("read care settings", e))?;
+            let settings = serde_json::from_slice(&source)
+                .map_err(|e| Error::ConfigurationError(e.to_string()))?;
+            Command::Care {
+                settings,
+                expected: config.care,
+            }
+        }
         CliCommand::Discharge { target } => Command::Discharge { target },
     };
     command.validate()?;
@@ -146,6 +203,19 @@ fn output(response: Response, json: bool) -> Result<()> {
                 s.device.vendor,
                 s.device.model
             );
+            println!(
+                "Runtime: {}",
+                serde_json::to_string(&s.runtime)
+                    .map_err(|e| Error::ProtocolError(e.to_string()))?
+            );
+            for b in &s.batteries {
+                println!(
+                    "Telemetry {}: {}",
+                    b.id,
+                    serde_json::to_string(&b.telemetry)
+                        .map_err(|e| Error::ProtocolError(e.to_string()))?
+                );
+            }
             if let Some(e) = s.last_error {
                 println!("\nService: {e}");
             }
@@ -180,7 +250,7 @@ fn output(response: Response, json: bool) -> Result<()> {
                     c.reason
                 );
             }
-            output(Response::Capabilities(p.capabilities), false)?;
+            output(Response::Capabilities(Box::new(p.capabilities)), false)?;
         }
         Response::Config(c) => println!(
             "{}",

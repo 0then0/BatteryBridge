@@ -118,6 +118,7 @@ impl BatteryMonitor for Monitor {
             on_ac: boolean(&obj, "ExternalConnected"),
             hardware_start: None,
             hardware_stop: None,
+            telemetry: telemetry(&obj),
         }])
     }
 }
@@ -151,4 +152,104 @@ pub fn model() -> String {
     String::from_utf8_lossy(&bytes[..length])
         .trim_end_matches('\0')
         .to_owned()
+}
+
+fn telemetry(obj: &Object) -> BatteryTelemetry {
+    let voltage_mv = number(obj, "Voltage")
+        .and_then(|v| u32::try_from(v).ok())
+        .filter(|v| *v > 0);
+    let current_ma = number(obj, "InstantAmperage").and_then(|v| i32::try_from(v).ok());
+    BatteryTelemetry {
+        temperature_deci_c: number(obj, "Temperature").and_then(temperature_deci_c),
+        voltage_mv,
+        current_ma,
+        power_mw: voltage_mv
+            .zip(current_ma)
+            .and_then(|(v, a)| i32::try_from(i64::from(v) * i64::from(a) / 1000).ok()),
+        cycle_count: number(obj, "CycleCount").and_then(|v| u32::try_from(v).ok()),
+        raw_percent: number(obj, "AppleRawCurrentCapacity")
+            .zip(number(obj, "AppleRawMaxCapacity"))
+            .filter(|(v, max)| *v >= 0 && *max > 0)
+            .map(|(v, max)| (v.saturating_mul(100) / max).min(100) as u8),
+        remaining_minutes: number(obj, "TimeRemaining")
+            .and_then(|v| u32::try_from(v).ok())
+            .filter(|v| *v < 65535),
+    }
+}
+
+fn temperature_deci_c(centi_c: i64) -> Option<i16> {
+    // AppleSmartBattery Temperature is centi-Celsius, as documented in Apple's
+    // PowerManagement/pmconfigd/Resources/com.apple.bdc.metadata.plist (BDC_SBC).
+    (-4000..=12000)
+        .contains(&centi_c)
+        .then_some((centi_c / 10) as i16)
+}
+
+#[cfg(test)]
+mod telemetry_tests {
+    use super::*;
+
+    #[test]
+    fn smart_battery_centi_celsius_converts_without_kelvin_offset() {
+        for (raw, expected) in [
+            (2700, 270),
+            (3100, 310),
+            (4000, 400),
+            (-1000, -100),
+            (12000, 1200),
+        ] {
+            assert_eq!(temperature_deci_c(raw), Some(expected));
+        }
+        for raw in [-4001, 12001, i64::MIN, i64::MAX] {
+            assert_eq!(temperature_deci_c(raw), None);
+        }
+    }
+
+    #[test]
+    fn converted_sensor_values_drive_the_actual_heat_threshold_and_hysteresis() {
+        #[derive(Default)]
+        struct Controller(bool);
+        impl ChargeController for Controller {
+            fn capabilities(&self) -> Capabilities {
+                let mut caps = Capabilities::unsupported("fixture");
+                caps.charge_limit = Capability::supported("fixture");
+                caps.heat_protection = caps.charge_limit.clone();
+                caps
+            }
+            fn apply(&mut self, _: Option<u8>, _: Option<u8>) -> Result<()> {
+                Ok(())
+            }
+            fn charging(&mut self, enabled: bool) -> Result<()> {
+                self.0 = enabled;
+                Ok(())
+            }
+        }
+        let mut controller = Controller::default();
+        let mut policy = policy::Policy::default();
+        policy.config.care.heat_limit_c = Some(35);
+        for (raw, enabled) in [
+            (3100, true),
+            (3500, false),
+            (3400, false),
+            (3300, true),
+            (4000, false),
+        ] {
+            let battery = BatteryStatus {
+                id: "BAT0".into(),
+                percent: Some(50),
+                state: "charging".into(),
+                on_ac: Some(true),
+                health_percent: None,
+                hardware_start: None,
+                hardware_stop: None,
+                telemetry: BatteryTelemetry {
+                    temperature_deci_c: temperature_deci_c(raw),
+                    ..BatteryTelemetry::default()
+                },
+            };
+            policy.tick(&mut controller, &battery).unwrap();
+            assert_eq!(controller.0, enabled, "sensor value {raw}");
+            assert!(!policy.runtime.temperature_unavailable);
+        }
+    }
 }

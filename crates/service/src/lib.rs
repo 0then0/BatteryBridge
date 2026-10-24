@@ -12,6 +12,7 @@ pub struct Service {
     path: PathBuf,
     last_error: Option<Error>,
     sleep_error: Option<Error>,
+    schedule_error: Option<Error>,
 }
 impl Service {
     pub fn new(platform: Platform, path: PathBuf) -> Result<Self> {
@@ -27,6 +28,7 @@ impl Service {
             path,
             last_error,
             sleep_error: None,
+            schedule_error: None,
         })
     }
     fn apply_policy(&mut self, next: &mut Policy) -> Result<()> {
@@ -45,9 +47,20 @@ impl Service {
         if self.controller.is_none() {
             return;
         }
+        if let Err(error) = self.run_schedules(chrono::Utc::now().timestamp()) {
+            if self.schedule_error.as_ref() != Some(&error) {
+                tracing::warn!(error=%error, "schedule execution failed");
+            }
+            self.schedule_error = Some(error);
+        }
         let mut next = self.policy.clone();
         match self.apply_policy(&mut next) {
             Ok(()) => {
+                if next.auxiliary_error != self.policy.auxiliary_error
+                    && let Some(error) = &next.auxiliary_error
+                {
+                    tracing::warn!(error=%error, "optional battery control failed");
+                }
                 self.policy = next;
                 self.last_error = None;
             }
@@ -56,14 +69,45 @@ impl Service {
                     let _ = c.release();
                 }
                 // Ephemeral modes are cancelled on errors, never restarted blindly.
-                self.policy.top_up = false;
-                self.policy.discharge_target = None;
+                self.policy.cancel_temporary();
+                if self.policy.config.care.heat_limit_c.is_some() {
+                    self.policy.runtime.heat_paused = true;
+                    if let Some(controller) = &mut self.controller {
+                        let _ = controller.charging(false);
+                    }
+                }
                 if self.last_error.as_ref() != Some(&e) {
                     tracing::warn!(error=%e,"policy enforcement failed");
                 }
                 self.last_error = Some(e);
             }
         }
+    }
+    fn run_schedules(&mut self, now: i64) -> Result<()> {
+        // Claim every due task durably before touching hardware. Missed runs coalesce.
+        let mut claimed = self.policy.config.clone();
+        let mut due = Vec::new();
+        for task in &mut claimed.care.schedules {
+            if task.enabled && task.next_at <= now {
+                due.push((task.id, batterybridge_core::schedule::command(&task.action)));
+                batterybridge_core::schedule::advance(task, now)?;
+            }
+        }
+        if due.is_empty() {
+            return Ok(());
+        }
+        config::save(&self.path, &claimed)?;
+        self.policy.config = claimed;
+        // Deterministic configured order. A failed action is reported, never replayed after restart.
+        let mut error = None;
+        for (id, command) in due {
+            if let Err(e) = self.execute(command) {
+                tracing::warn!(schedule_id=id, error=%e, "scheduled action failed");
+                error = Some(e);
+            }
+        }
+        self.schedule_error = error.clone();
+        error.map_or(Ok(()), Err)
     }
     pub fn prepare_sleep(&mut self) -> Result<()> {
         let result = match &mut self.controller {
@@ -92,18 +136,40 @@ impl Service {
             Err(e) => Response::Error(e),
         }
     }
+    fn rollback(&mut self) {
+        if let Some(controller) = &mut self.controller {
+            let _ = controller.release();
+        }
+        let mut previous = self.policy.clone();
+        let paused = previous.runtime.paused;
+        previous.cancel_temporary();
+        previous.runtime.paused = paused;
+        if self.apply_policy(&mut previous).is_err()
+            && let Some(controller) = &mut self.controller
+        {
+            let _ = controller.release();
+            if previous.config.care.heat_limit_c.is_some() {
+                let _ = controller.charging(false);
+            }
+        }
+        self.policy = previous;
+    }
     fn execute(&mut self, command: Command) -> Result<Response> {
         match command {
             // Monitoring-only installations have no hardware policy to release.
             // A saved active limit still requires a working controller, so removal
             // cannot silently leave previously configured hardware inhibition.
-            Command::Limit {
+            Command::Reset
+            | Command::Limit {
                 stop: None,
                 start: None,
             } if self.controller.is_none()
                 && self.policy.config.charge_limit.is_none()
                 && !self.policy.top_up
-                && self.policy.discharge_target.is_none() =>
+                && self.policy.discharge_target.is_none()
+                && self.policy.config.care == CareSettings::default()
+                && self.platform.report.capabilities.charge_limit.state
+                    == CapabilityState::Unsupported =>
             {
                 Ok(Response::Ok)
             }
@@ -115,43 +181,45 @@ impl Service {
                 config: Some(self.policy.config.clone()),
                 top_up_active: self.policy.top_up,
                 discharge_target: self.policy.discharge_target,
-                last_error: self.last_error.clone().or_else(|| self.sleep_error.clone()),
+                runtime: self.policy.runtime.clone(),
+                last_error: self
+                    .last_error
+                    .clone()
+                    .or_else(|| self.policy.auxiliary_error.clone())
+                    .or_else(|| self.sleep_error.clone())
+                    .or_else(|| self.schedule_error.clone()),
             }))),
-            Command::Capabilities => Ok(Response::Capabilities(
+            Command::Capabilities => Ok(Response::Capabilities(Box::new(
                 self.platform.report.capabilities.clone(),
-            )),
+            ))),
             Command::Probe => Ok(Response::Probe(Box::new(Platform::discover()?.report))),
             Command::Config => Ok(Response::Config(self.policy.config.clone())),
             command => {
+                if let Command::Care { expected, .. } = &command
+                    && expected != &self.policy.config.care
+                {
+                    return Err(Error::ConfigurationError(
+                        "care settings changed; refresh before saving".into(),
+                    ));
+                }
                 let mut next = self.policy.clone();
                 let caps = &self.platform.report.capabilities;
-                let persist = matches!(command, Command::Limit { .. });
-                match command {
-                    Command::Limit { stop, start } => next.set_limit(stop, start, caps)?,
-                    Command::TopUp => next.top_up(caps)?,
-                    Command::Discharge { target } => next.discharge(target, caps)?,
-                    _ => unreachable!(),
+                let persist = matches!(
+                    command,
+                    Command::Limit { .. } | Command::Care { .. } | Command::Reset
+                );
+                next.operation(&command, caps, chrono::Utc::now().timestamp())?;
+                if let Err(error) = self.apply_policy(&mut next) {
+                    self.rollback();
+                    return Err(error);
                 }
-                let apply = self.apply_policy(&mut next);
-                if let Err(e) = apply {
-                    if let Some(c) = &mut self.controller {
-                        let _ = c.release();
-                    }
-                    let mut previous = self.policy.clone();
-                    let _ = self.apply_policy(&mut previous);
-                    return Err(e);
-                }
-                if persist && let Err(e) = config::save(&self.path, &next.config) {
-                    let mut previous = self.policy.clone();
-                    if self.apply_policy(&mut previous).is_err()
-                        && let Some(c) = &mut self.controller
-                    {
-                        let _ = c.release();
-                    }
-                    return Err(e);
+                if persist && let Err(error) = config::save(&self.path, &next.config) {
+                    self.rollback();
+                    return Err(error);
                 }
                 self.policy = next;
                 self.last_error = None;
+                self.schedule_error = None;
                 Ok(Response::Ok)
             }
         }
@@ -179,6 +247,7 @@ mod tests {
                 health_percent: None,
                 hardware_start: None,
                 hardware_stop: None,
+                telemetry: BatteryTelemetry::default(),
             }])
         }
     }
@@ -224,6 +293,7 @@ mod tests {
             path,
             last_error: None,
             sleep_error: None,
+            schedule_error: None,
         }
     }
     fn dir() -> PathBuf {
@@ -276,6 +346,7 @@ mod tests {
     fn monitoring_only_uninstall_accepts_off_but_does_not_hide_an_active_policy() {
         let mut s = service(dir().join("config.toml"), Rc::new(RefCell::new(None)));
         s.controller = None;
+        s.platform.report.capabilities = Capabilities::unsupported("monitor only");
         assert!(matches!(
             s.handle(Request::new(Command::Limit {
                 stop: None,
@@ -283,6 +354,12 @@ mod tests {
             })),
             Response::Ok
         ));
+        s.platform.report.capabilities.charge_limit = Capability::unknown("access denied");
+        assert!(matches!(
+            s.handle(Request::new(Command::Reset)),
+            Response::Error(_)
+        ));
+        s.platform.report.capabilities = Capabilities::unsupported("monitor only");
         s.policy.config.charge_limit = Some(80);
         assert!(matches!(
             s.handle(Request::new(Command::Limit {
@@ -342,6 +419,237 @@ mod tests {
         ));
         assert_eq!(*state.borrow(), None);
         assert_eq!(s.policy.config.charge_limit, None);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    fn scheduled(at: i64) -> Schedule {
+        Schedule {
+            id: 1,
+            enabled: true,
+            next_at: at,
+            anchor_at: None,
+            repeat: Repeat::Once,
+            action: ScheduleAction::Limit {
+                stop: 80,
+                start: None,
+            },
+        }
+    }
+    #[test]
+    fn due_schedule_is_claimed_before_hardware_and_is_not_replayed_on_restart() {
+        let root = dir();
+        let path = root.join("config.toml");
+        let state = Rc::new(RefCell::new(None));
+        let mut s = service(path.clone(), state.clone());
+        s.policy.config.care.schedules.push(scheduled(100));
+        config::save(&path, &s.policy.config).unwrap();
+        s.run_schedules(200).unwrap();
+        assert_eq!(*state.borrow(), Some(80));
+        let disk = config::load(&path).unwrap();
+        assert!(!disk.care.schedules[0].enabled);
+        assert_eq!(disk.charge_limit, Some(80));
+        let mut restored = service(path, state.clone());
+        restored.run_schedules(300).unwrap();
+        assert!(!restored.policy.config.care.schedules[0].enabled);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn failed_schedule_claim_never_runs_action_but_still_enforces_existing_limit() {
+        let root = dir();
+        let path = root.join("config.toml");
+        let state = Rc::new(RefCell::new(None));
+        let mut s = service(path.clone(), state.clone());
+        s.policy.config.charge_limit = Some(85);
+        s.policy.config.care.schedules.push(scheduled(100));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(path.with_extension("toml.new"), "interrupted").unwrap();
+        s.tick();
+        assert_eq!(*state.borrow(), Some(85));
+        assert!(s.schedule_error.is_some());
+        assert!(s.policy.config.care.schedules[0].enabled);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn stale_care_update_cannot_reactivate_a_claimed_schedule() {
+        let root = dir();
+        let path = root.join("config.toml");
+        let mut s = service(path.clone(), Rc::new(RefCell::new(None)));
+        s.policy.config.care.schedules.push(scheduled(100));
+        let stale = s.policy.config.care.clone();
+        s.run_schedules(200).unwrap();
+        assert!(matches!(
+            s.handle(Request::new(Command::Care {
+                settings: stale.clone(),
+                expected: stale
+            })),
+            Response::Error(Error::ConfigurationError(_))
+        ));
+        assert!(!s.policy.config.care.schedules[0].enabled);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn unsupported_scheduled_operations_are_rejected_before_persistence() {
+        let root = dir();
+        let path = root.join("config.toml");
+        let mut s = service(path.clone(), Rc::new(RefCell::new(None)));
+        let expected = s.policy.config.care.clone();
+        let mut settings = expected.clone();
+        let mut task = scheduled(100);
+        task.action = ScheduleAction::Calibrate;
+        settings.schedules.push(task);
+        assert!(matches!(
+            s.handle(Request::new(Command::Care { settings, expected })),
+            Response::Error(Error::Unsupported(_))
+        ));
+        assert!(!path.exists());
+    }
+    #[test]
+    fn failed_scheduled_hardware_action_is_reported_and_not_replayed() {
+        struct RejectLimit(Rc<RefCell<u32>>);
+        impl ChargeController for RejectLimit {
+            fn capabilities(&self) -> Capabilities {
+                Controller(Rc::new(RefCell::new(None))).capabilities()
+            }
+            fn apply(&mut self, _: Option<u8>, stop: Option<u8>) -> Result<()> {
+                if stop == Some(80) {
+                    *self.0.borrow_mut() += 1;
+                    Err(Error::HardwareError("fixture refused".into()))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+        let root = dir();
+        let path = root.join("config.toml");
+        let mut s = service(path.clone(), Rc::new(RefCell::new(None)));
+        let count = Rc::new(RefCell::new(0));
+        s.controller = Some(Box::new(RejectLimit(count.clone())));
+        s.policy.config.care.schedules.push(scheduled(100));
+        assert!(s.run_schedules(200).is_err());
+        assert_eq!(*count.borrow(), 1);
+        s.run_schedules(300).unwrap();
+        assert_eq!(*count.borrow(), 1);
+        s.tick();
+        let Response::Status(status) = s.handle(Request::new(Command::Status)) else {
+            panic!("status");
+        };
+        assert!(
+            matches!(status.last_error, Some(Error::HardwareError(_))),
+            "successful periodic enforcement must not erase a consumed task failure"
+        );
+        assert!(!config::load(&path).unwrap().care.schedules[0].enabled);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn reset_disables_schedules_and_saved_care_before_acknowledgement() {
+        let root = dir();
+        let path = root.join("config.toml");
+        let state = Rc::new(RefCell::new(Some(80)));
+        let mut s = service(path.clone(), state.clone());
+        s.policy.config.charge_limit = Some(80);
+        s.policy.config.care.schedules.push(scheduled(100));
+        assert!(matches!(
+            s.handle(Request::new(Command::Reset)),
+            Response::Ok
+        ));
+        assert_eq!(*state.borrow(), None);
+        assert_eq!(config::load(&path).unwrap(), Config::default());
+        s.run_schedules(200).unwrap();
+        assert_eq!(*state.borrow(), None);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn optional_led_and_idle_assertion_failures_preserve_charging_and_report_recovery() {
+        #[derive(Default)]
+        struct State {
+            enabled: bool,
+            failure: Option<&'static str>,
+            releases: usize,
+        }
+        struct OptionalController(Rc<RefCell<State>>);
+        impl ChargeController for OptionalController {
+            fn capabilities(&self) -> Capabilities {
+                let mut caps = Controller(Rc::new(RefCell::new(None))).capabilities();
+                caps.magsafe_led = caps.charge_limit.clone();
+                caps.sleep_prevention = caps.charge_limit.clone();
+                caps
+            }
+            fn apply(&mut self, _: Option<u8>, _: Option<u8>) -> Result<()> {
+                Ok(())
+            }
+            fn charging(&mut self, enabled: bool) -> Result<()> {
+                self.0.borrow_mut().enabled = enabled;
+                Ok(())
+            }
+            fn magsafe_led(&mut self, _: LedMode) -> Result<()> {
+                if self.0.borrow().failure == Some("LED rejected") {
+                    Err(Error::HardwareError("LED rejected".into()))
+                } else {
+                    Ok(())
+                }
+            }
+            fn prevent_sleep(&mut self, _: bool) -> Result<()> {
+                if self.0.borrow().failure == Some("idle assertion rejected") {
+                    Err(Error::PlatformError("idle assertion rejected".into()))
+                } else {
+                    Ok(())
+                }
+            }
+            fn release(&mut self) -> Result<()> {
+                let mut state = self.0.borrow_mut();
+                state.enabled = true;
+                state.releases += 1;
+                Ok(())
+            }
+        }
+        let root = dir();
+        let mut s = service(root.join("config.toml"), Rc::new(RefCell::new(None)));
+        let state = Rc::new(RefCell::new(State::default()));
+        let controller = OptionalController(state.clone());
+        s.platform.report.capabilities = controller.capabilities();
+        s.controller = Some(Box::new(controller));
+        s.policy.config.charge_limit = Some(70); // Monitor reports 74%.
+        s.policy.config.care.led = LedMode::Orange;
+        s.tick();
+        assert!(!state.borrow().enabled);
+        for failure in ["LED rejected", "idle assertion rejected"] {
+            state.borrow_mut().failure = Some(failure);
+            for _ in 0..2 {
+                s.tick();
+                assert!(!state.borrow().enabled);
+                assert_eq!(state.borrow().releases, 0);
+                assert_eq!(s.policy.config.charge_limit, Some(70));
+                let Response::Status(status) = s.handle(Request::new(Command::Status)) else {
+                    panic!("status");
+                };
+                assert!(status.last_error.unwrap().to_string().contains(failure));
+            }
+            state.borrow_mut().failure = None;
+            s.tick();
+            let Response::Status(status) = s.handle(Request::new(Command::Status)) else {
+                panic!("status");
+            };
+            assert_eq!(status.last_error, None);
+            assert!(!state.borrow().enabled);
+        }
+    }
+    #[test]
+    fn disabling_percentage_limit_does_not_get_blocked_by_a_future_top_up() {
+        let root = dir();
+        let path = root.join("config.toml");
+        let mut s = service(path.clone(), Rc::new(RefCell::new(None)));
+        s.policy.config.charge_limit = Some(80);
+        let mut task = scheduled(100);
+        task.action = ScheduleAction::TopUp;
+        s.policy.config.care.schedules.push(task);
+        assert!(matches!(
+            s.handle(Request::new(Command::Limit {
+                stop: None,
+                start: None
+            })),
+            Response::Ok
+        ));
+        assert_eq!(config::load(&path).unwrap().charge_limit, None);
+        assert!(s.policy.config.care.schedules[0].enabled);
         std::fs::remove_dir_all(root).unwrap();
     }
 }

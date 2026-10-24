@@ -28,13 +28,13 @@ The first command sets an upper limit of 80%. The second also requests a 75% sta
 
 `config` displays the saved TOML policy. Successful limit changes are saved by the service and reapplied after it restarts. See [charging policies](configuration.md) for hysteresis and persistence behavior.
 
-To restore normal charging:
+To disable the percentage limit (while retaining enabled care settings):
 
 ```sh
 batterybridge limit off
 ```
 
-On sysfs devices with both attributes, this sets start 99 and stop 100. It does not restore another charge manager's previous settings. Run one charge-policy manager at a time.
+Use `batterybridge reset` to disable all care settings and schedules as well and restore normal charging. On sysfs devices with both attributes, disabling the limit sets start 99 and stop 100. It does not restore another charge manager's previous settings. Run one charge-policy manager at a time.
 
 ## Charge to 100% temporarily
 
@@ -51,6 +51,10 @@ batterybridge discharge 80
 ```
 
 This advanced command requires a backend with force-discharge support. It stops at the target percentage and has a minimum target of 20%. Keep the device under supervision during discharge. Sensor failure, service restart, orderly shutdown and macOS sleep cancel the temporary discharge mode.
+
+## Advanced care and automation
+
+The source version 0.3.0 adds target charging, hold/pause/resume, automatic discharge, temperature protection, calibration and calendar schedules. Open **Temporary operations** or **Battery care** in the desktop app. Available controls depend on detected hardware. See [battery care and schedules](battery-care.md) for exact behavior and CLI commands.
 
 ## Use the tray app
 

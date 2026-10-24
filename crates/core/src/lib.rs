@@ -8,6 +8,7 @@
 pub mod config;
 /// Charging hysteresis and temporary top-up/discharge state transitions.
 pub mod policy;
+pub mod schedule;
 pub use batterybridge_protocol::*;
 
 /// Read-only battery information, independent of charge-control availability.
@@ -40,6 +41,14 @@ pub trait ChargeController {
     fn charging(&mut self, enabled: bool) -> Result<()> {
         let _ = enabled;
         Ok(())
+    }
+    fn magsafe_led(&mut self, mode: LedMode) -> Result<()> {
+        let _ = mode;
+        Err(Error::Unsupported("MagSafe LED".into()))
+    }
+    fn prevent_sleep(&mut self, enabled: bool) -> Result<()> {
+        let _ = enabled;
+        Err(Error::Unsupported("sleep prevention".into()))
     }
     /// Restore normal charging and release any adapter-specific isolation.
     fn release(&mut self) -> Result<()> {

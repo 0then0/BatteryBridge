@@ -9,6 +9,7 @@ readme.workspace = true
 description = "Battery charging policy, platform traits and configuration persistence."
 
 [dependencies]
+chrono.workspace = true
 batterybridge-protocol.workspace = true
 serde.workspace = true
 toml.workspace = true

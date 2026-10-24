@@ -34,7 +34,15 @@ pub fn discover() -> Result<Platform> {
                         },
                     );
                 }
-                for (key, len) in [(*b"CHTE", 4), (*b"CH0B", 1), (*b"CH0C", 1), (*b"CH0I", 1)] {
+                for (key, len) in [
+                    (*b"CHTE", 4),
+                    (*b"CH0B", 1),
+                    (*b"CH0C", 1),
+                    (*b"CH0I", 1),
+                    (*b"CHIE", 1),
+                    (*b"CH0J", 1),
+                    (*b"ACLC", 1),
+                ] {
                     let result = smc.read(key, len);
                     interfaces.insert(
                         format!("SMC:{}", String::from_utf8_lossy(&key)),
@@ -73,12 +81,16 @@ pub fn controller() -> Result<Box<dyn ChargeController>> {
                 .get("SMC:BCLM")
                 .is_some_and(|value| value == "available"),
         caps: platform.report.capabilities,
+        awake: power::IdleAssertion::default(),
+        led_overridden: false,
     }))
 }
 struct Controller {
     smc: smc::Smc,
     caps: Capabilities,
     bclm: bool,
+    awake: power::IdleAssertion,
+    led_overridden: bool,
 }
 impl ChargeController for Controller {
     fn capabilities(&self) -> Capabilities {
@@ -95,7 +107,7 @@ impl ChargeController for Controller {
         Ok(())
     }
     fn charging(&mut self, enabled: bool) -> Result<()> {
-        if self.bclm {
+        if !self.caps.manual_charging.available() {
             return Ok(());
         }
         self.smc.gate(enabled)
@@ -104,16 +116,42 @@ impl ChargeController for Controller {
         batterybridge_core::policy::require(&self.caps.force_discharge)?;
         self.smc.discharge(enabled)
     }
-    fn release(&mut self) -> Result<()> {
-        if self.bclm {
-            return self.smc.set_stop(100);
+    fn magsafe_led(&mut self, mode: LedMode) -> Result<()> {
+        batterybridge_core::policy::require(&self.caps.magsafe_led)?;
+        if mode == LedMode::System && !self.led_overridden {
+            return Ok(());
         }
+        self.smc.led(mode)?;
+        self.led_overridden = mode != LedMode::System;
+        Ok(())
+    }
+    fn prevent_sleep(&mut self, enabled: bool) -> Result<()> {
+        batterybridge_core::policy::require(&self.caps.sleep_prevention)?;
+        self.awake.set(enabled)
+    }
+    fn release(&mut self) -> Result<()> {
+        // Attempt every cleanup even when one hardware operation fails.
+        let awake = self.awake.set(false);
+        let led = if self.caps.magsafe_led.available() {
+            self.magsafe_led(LedMode::System)
+        } else {
+            Ok(())
+        };
         let discharge = if self.caps.force_discharge.available() {
             self.smc.discharge(false)
         } else {
             Ok(())
         };
-        let gate = self.smc.gate(true);
-        discharge.and(gate)
+        let gate = if self.caps.manual_charging.available() {
+            self.smc.gate(true)
+        } else {
+            Ok(())
+        };
+        let limit = if self.bclm {
+            self.smc.set_stop(100)
+        } else {
+            Ok(())
+        };
+        awake.and(led).and(discharge).and(gate).and(limit)
     }
 }

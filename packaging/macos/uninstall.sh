@@ -39,7 +39,7 @@ if [ "$running" -eq 1 ] || [ -e /Library/PrivilegedHelperTools/io.github.battery
             /bin/sleep 1
         done
     fi
-    /Library/PrivilegedHelperTools/io.github.batterybridge.cli limit off
+    /Library/PrivilegedHelperTools/io.github.batterybridge.cli reset
     /bin/launchctl bootout system/io.github.batterybridge
 fi
 

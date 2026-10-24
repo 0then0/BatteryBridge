@@ -17,11 +17,18 @@ Available controls depend on your laptop's kernel driver, firmware and vendor in
 
 - Read battery percentage, charging state, power source and available health information.
 - Set charge limits and start thresholds where supported by the device.
-- Temporarily charge to 100% and restore the saved limit on supported backends.
+- Temporarily charge to 100%, hold another target, pause control or discharge to a safe target.
+- Configure temperature protection, automatic discharge and calibration on compatible SMC hardware.
+- Schedule charging actions by local calendar time, including monthly tasks.
+- Read available temperature, voltage, current, power, cycles and raw capacity information.
+- Control compatible MagSafe lights and prevent idle sleep during active battery care.
+- Use installed CLI commands from macOS Shortcuts.
 - Keep charging settings active through a separate background service.
 - Inspect device capabilities and export a compatibility report.
 - Use the CLI independently of the tray app.
 - Use the desktop app in English, Russian, Spanish, German, French, Japanese or Brazilian Portuguese, with system light/dark appearance.
+
+The extended battery-care controls are part of the unreleased 0.3.0 source. See [battery care and schedules](docs/battery-care.md) for hardware requirements, cancellation behavior and differences from other charge managers.
 
 ## Downloads
 

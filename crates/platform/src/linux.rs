@@ -74,6 +74,7 @@ impl BatteryMonitor for SysfsMonitor {
                         .and_then(|v| u8::try_from(v).ok()),
                     hardware_stop: number(p.join("charge_control_end_threshold"))
                         .and_then(|v| u8::try_from(v).ok()),
+                    telemetry: telemetry(p),
                 })
             })
             .collect()
@@ -343,5 +344,117 @@ mod tests {
         assert_eq!(*io.values.borrow(), (75, 80));
         apply_threshold_pair(&io, Some(90), 95).unwrap();
         assert_eq!(*io.values.borrow(), (90, 95));
+    }
+}
+
+fn telemetry(path: &Path) -> BatteryTelemetry {
+    let direction: Option<i64> = match text(path.join("status")).as_deref() {
+        Some("Charging") => Some(1),
+        Some("Discharging") => Some(-1),
+        _ => None,
+    };
+    let signed = |name| {
+        let direction = direction?;
+        text(path.join(name))
+            .and_then(|s| s.parse::<i64>().ok())
+            .and_then(|v| v.checked_abs())
+            .and_then(|v| i32::try_from(v / 1000 * direction).ok())
+    };
+    BatteryTelemetry {
+        temperature_deci_c: text(path.join("temp"))
+            .and_then(|v| v.parse().ok())
+            .filter(|v| (-400..=1200).contains(v)),
+        voltage_mv: number(path.join("voltage_now")).map(|v| v / 1000),
+        current_ma: signed("current_now"),
+        power_mw: signed("power_now"),
+        cycle_count: number(path.join("cycle_count")),
+        raw_percent: ["energy", "charge"].iter().find_map(|prefix| {
+            let now = u64::from(number(path.join(format!("{prefix}_now")))?);
+            let max = u64::from(number(path.join(format!("{prefix}_full")))?);
+            (max > 0).then(|| (now * 100 / max).min(100) as u8)
+        }),
+        remaining_minutes: direction
+            .and_then(|direction| {
+                number(path.join(if direction > 0 {
+                    "time_to_full_now"
+                } else {
+                    "time_to_empty_now"
+                }))
+            })
+            .map(|v| v / 60),
+    }
+}
+
+#[cfg(test)]
+mod telemetry_tests {
+    use super::*;
+    #[test]
+    fn unknown_direction_is_absent_instead_of_fabricated_zero() {
+        let root = std::env::temp_dir().join(format!(
+            "batterybridge-unknown-direction-{}",
+            std::process::id()
+        ));
+        let path = root.join("BAT0");
+        fs::create_dir_all(&path).unwrap();
+        for (name, value) in [
+            ("type", "Battery"),
+            ("current_now", "1200000"),
+            ("power_now", "14400000"),
+            ("time_to_empty_now", "3600"),
+        ] {
+            fs::write(path.join(name), value).unwrap();
+        }
+        let monitor = SysfsMonitor::new(root.clone());
+        for status in [None, Some("Unknown"), Some("Not charging"), Some("Full")] {
+            if let Some(status) = status {
+                fs::write(path.join("status"), status).unwrap();
+            }
+            let battery = monitor.batteries().unwrap().remove(0);
+            assert_eq!(battery.telemetry.current_ma, None);
+            assert_eq!(battery.telemetry.power_mw, None);
+            assert_eq!(battery.telemetry.remaining_minutes, None);
+        }
+        fs::write(path.join("status"), "Charging").unwrap();
+        let battery = monitor.batteries().unwrap().remove(0);
+        assert_eq!(battery.telemetry.current_ma, Some(1200));
+        assert_eq!(battery.telemetry.power_mw, Some(14400));
+        fs::write(path.join("current_now"), "0").unwrap();
+        fs::write(path.join("power_now"), "0").unwrap();
+        let battery = monitor.batteries().unwrap().remove(0);
+        assert_eq!(battery.telemetry.current_ma, Some(0));
+        assert_eq!(battery.telemetry.power_mw, Some(0));
+        fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn sysfs_units_directions_and_capacity_ratio_are_not_invented() {
+        let path =
+            std::env::temp_dir().join(format!("batterybridge-telemetry-{}", std::process::id()));
+        fs::create_dir_all(&path).unwrap();
+        for (name, value) in [
+            ("temp", "315"),
+            ("status", "Discharging"),
+            ("voltage_now", "12500000"),
+            ("current_now", "1200000"),
+            ("power_now", "15000000"),
+            ("cycle_count", "123"),
+            ("energy_now", "42000000"),
+            ("energy_full", "60000000"),
+            ("time_to_empty_now", "3600"),
+        ] {
+            fs::write(path.join(name), value).unwrap();
+        }
+        let t = telemetry(&path);
+        assert_eq!(t.temperature_deci_c, Some(315));
+        assert_eq!(t.voltage_mv, Some(12500));
+        assert_eq!(t.current_ma, Some(-1200));
+        assert_eq!(t.power_mw, Some(-15000));
+        assert_eq!(t.raw_percent, Some(70));
+        assert_eq!(t.remaining_minutes, Some(60));
+        fs::write(path.join("energy_full"), "0").unwrap();
+        fs::write(path.join("temp"), "invalid").unwrap();
+        let t = telemetry(&path);
+        assert_eq!(t.raw_percent, None);
+        assert_eq!(t.temperature_deci_c, None);
+        fs::remove_dir_all(path).unwrap();
     }
 }

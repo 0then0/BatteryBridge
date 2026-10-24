@@ -20,7 +20,9 @@ fn query_with(
         {
             let platform = discover()?;
             if matches!(command, Command::Capabilities) {
-                return Ok(Response::Capabilities(platform.report.capabilities));
+                return Ok(Response::Capabilities(Box::new(
+                    platform.report.capabilities,
+                )));
             }
             Ok(Response::Status(Box::new(Snapshot {
                 batteries: platform.monitor.batteries()?,
@@ -31,6 +33,7 @@ fn query_with(
                 top_up_active: false,
                 discharge_target: None,
                 last_error: Some(error),
+                runtime: RuntimeStatus::default(),
             })))
         }
         Err(error) => Err(error),
@@ -50,6 +53,7 @@ mod tests {
                 on_ac: Some(true),
                 hardware_start: None,
                 hardware_stop: None,
+                telemetry: BatteryTelemetry::default(),
             }])
         }
     }

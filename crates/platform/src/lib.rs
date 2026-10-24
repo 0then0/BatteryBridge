@@ -111,7 +111,7 @@ pub fn resolve(facts: Facts) -> ProbeReport {
         }
         "macos" => {
             let gate = matches!(facts.device.architecture.as_str(), "aarch64" | "x86_64")
-                && (has("SMC:CHTE") || (has("SMC:CH0B") && has("SMC:CH0C")));
+                && (has("SMC:CHTE") || has("SMC:CH0C"));
             if gate {
                 caps.charge_limit = Capability::experimental(
                     "SMC binary gate; daemon enforces hysteresis while awake; firmware may deny writes",
@@ -120,14 +120,31 @@ pub fn resolve(facts: Facts) -> ProbeReport {
                 caps.start_threshold = caps.charge_limit.clone();
                 caps.temporary_full_charge =
                     Capability::experimental("daemon temporarily releases gate until full");
-                if has("SMC:CH0I") {
-                    caps.force_discharge =
-                        Capability::experimental("SMC CH0I; daemon restores adapter at target");
+                caps.manual_charging = caps.charge_limit.clone();
+                caps.sleep_prevention = Capability::supported(
+                    "scoped idle-sleep assertion; lid-close and manual sleep remain possible",
+                );
+                if facts
+                    .batteries
+                    .first()
+                    .is_some_and(|b| b.telemetry.temperature_deci_c.is_some())
+                {
+                    caps.heat_protection = Capability::experimental(
+                        "battery temperature sensor and SMC charging gate",
+                    );
+                }
+                if has("SMC:CHIE") || has("SMC:CH0J") || has("SMC:CH0I") {
+                    caps.force_discharge = Capability::experimental(
+                        "SMC adapter gate; daemon restores adapter at target",
+                    );
+                    caps.adapter_disable = caps.force_discharge.clone();
                 }
             }
             let bclm = facts.device.architecture == "x86_64" && has("SMC:BCLM");
             if bclm {
-                caps = Capabilities::unsupported("not exposed by Intel BCLM");
+                if !gate {
+                    caps = Capabilities::unsupported("not exposed by Intel BCLM");
+                }
                 caps.charge_limit = Capability::experimental(
                     "Intel SMC BCLM firmware threshold, 50..100%; device write compatibility is unverified",
                 );
@@ -135,6 +152,11 @@ pub fn resolve(facts: Facts) -> ProbeReport {
                 caps.temporary_full_charge =
                     Capability::experimental("temporary 100% threshold, restored by daemon");
                 caps.allowed_limits = Some((50..=100).collect());
+            }
+            if has("SMC:ACLC") && (gate || bclm) {
+                caps.magsafe_led = Capability::experimental(
+                    "MagSafe ACLC LED override; requires compatible connected adapter",
+                );
             }
             (
                 if bclm {

@@ -95,7 +95,7 @@ fn button(ui: &mut egui::Ui, text: String, enabled: bool) -> egui::Response {
             .min_size(vec2(ui.available_width(), 42.0)),
     )
 }
-fn status_card(ui: &mut egui::Ui, locale: &str, snapshot: Option<&Snapshot>) {
+fn status_card(ui: &mut egui::Ui, locale: &str, snapshot: Option<&Snapshot>, raw: bool) {
     let p = Palette::new(ui.visuals().dark_mode);
     let battery = snapshot.and_then(|s| s.batteries.first());
     let (rect, response) =
@@ -139,7 +139,13 @@ fn status_card(ui: &mut egui::Ui, locale: &str, snapshot: Option<&Snapshot>) {
         p.muted,
     );
     let percent = battery
-        .and_then(|b| b.percent)
+        .and_then(|b| {
+            if raw {
+                b.telemetry.raw_percent.or(b.percent)
+            } else {
+                b.percent
+            }
+        })
         .map(|v| format!("{v}%"))
         .unwrap_or_else(|| "—%".into());
     painter.text(
@@ -268,9 +274,15 @@ impl App {
                             ui.add_space(14.0);
                             ui.separator();
                             ui.add_space(16.0);
-                            status_card(ui, &self.locale, self.model.snapshot.as_ref());
+                            status_card(
+                                ui,
+                                &self.locale,
+                                self.model.snapshot.as_ref(),
+                                self.model.raw_percent,
+                            );
                             self.notices(ui);
                             self.policy(ui);
+                            self.care_view(ui);
                             if let Some(snapshot) = &self.model.snapshot {
                                 let snapshot = snapshot.clone();
                                 Frame::new()
@@ -291,6 +303,19 @@ impl App {
                                     ui,
                                     |ui| {
                                         for (key, cap) in [
+                                            (
+                                                "heatProtection",
+                                                &snapshot.capabilities.heat_protection,
+                                            ),
+                                            ("ledMode", &snapshot.capabilities.magsafe_led),
+                                            (
+                                                "preventSleep",
+                                                &snapshot.capabilities.sleep_prevention,
+                                            ),
+                                            (
+                                                "holdCharging",
+                                                &snapshot.capabilities.manual_charging,
+                                            ),
                                             ("chargeLimit", &snapshot.capabilities.charge_limit),
                                             (
                                                 "startThreshold",
@@ -409,6 +434,18 @@ impl App {
             if snapshot.capabilities.charge_limit.state == CapabilityState::Experimental {
                 note(ui, None, self.text("experimentalNotice"), false);
             }
+            if snapshot.runtime.heat_paused {
+                note(
+                    ui,
+                    Some(self.text("heatProtection")),
+                    self.text(if snapshot.runtime.temperature_unavailable {
+                        "temperatureMissing"
+                    } else {
+                        "heatPaused"
+                    }),
+                    true,
+                );
+            }
             if model::charging_above_limit(snapshot) {
                 note(ui, None, self.text("limitExceeded"), true);
             }
@@ -439,6 +476,14 @@ impl App {
         ui.label(RichText::new(self.text("chargeLimit")).size(24.0));
         let state = if snapshot.config.is_none() {
             self.text("settingsUnavailable")
+        } else if snapshot.runtime.paused {
+            self.text("policyPaused")
+        } else if snapshot.runtime.holding {
+            self.text("holdCharging")
+        } else if snapshot.runtime.calibration.is_some() {
+            self.text("calibration")
+        } else if let Some(target) = snapshot.runtime.charge_target {
+            format!("{}: {target}%", self.text("chargeTo"))
         } else if snapshot.top_up_active {
             self.text("topUpActive")
         } else if let Some(stop) = snapshot.config.as_ref().and_then(|c| c.charge_limit) {
@@ -817,6 +862,20 @@ mod tests {
                     app.locale = locale.into();
                     for offline in [false, true] {
                         let mut snapshot = fixture();
+                        let config = snapshot.config.as_mut().unwrap();
+                        config.care.heat_limit_c = Some(35);
+                        config.care.led = batterybridge_protocol::LedMode::FastBlinkOrange;
+                        config
+                            .care
+                            .schedules
+                            .push(batterybridge_protocol::Schedule {
+                                id: 1,
+                                enabled: true,
+                                next_at: 1893506400,
+                                anchor_at: None,
+                                repeat: batterybridge_protocol::Repeat::Biweekly,
+                                action: batterybridge_protocol::ScheduleAction::Calibrate,
+                            });
                         if offline {
                             snapshot.config = None;
                         }

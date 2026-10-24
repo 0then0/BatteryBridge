@@ -54,8 +54,9 @@ function Install-BatteryBridgeTask {
     Wait-BatteryBridgeService -Client (Join-Path $Destination 'batterybridge.exe') | Out-Null
 }
 function Restore-BatteryBridgeCharging {
-    param([string]$Client)
-    & $Client limit off
+    param([string]$Client, $Config)
+    # Installed client and service are a matched pair. Older installers know only limits.
+    if ($Config.version -ge 2) { & $Client reset } else { & $Client limit off }
     if ($LASTEXITCODE -ne 0) { throw 'Could not restore normal charging; removal stopped' }
 }
 function Remove-BatteryBridgeTask {
@@ -65,10 +66,9 @@ function Remove-BatteryBridgeTask {
     $client = Join-Path $Destination 'batterybridge.exe'
     if ($task.State -ne 'Running') { Start-ScheduledTask -TaskName 'BatteryBridge' }
     $config = Wait-BatteryBridgeService -Client $client
-    # Windows currently supports only persistent conservation mode, no ephemeral modes.
-    # A monitoring-only installation with an off policy has no charging state to restore.
-    if ($null -ne $config.charge_limit) {
-        Restore-BatteryBridgeCharging -Client $client
+    # Format 2 can contain schedules even when its current percentage limit is off.
+    if ($config.version -ge 2 -or $null -ne $config.charge_limit) {
+        Restore-BatteryBridgeCharging -Client $client -Config $config
     }
     Stop-BatteryBridgeTask
     Unregister-ScheduledTask -TaskName 'BatteryBridge' -Confirm:$false

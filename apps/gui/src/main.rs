@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod care;
 mod i18n;
 mod model;
 mod platform;
@@ -10,7 +11,11 @@ use fastframe_shell::{Closed, Headless, Held, Resident, Shell, Waker};
 use fastframe_tray::{Event, MenuItem, Tray};
 use std::{
     path::PathBuf,
-    sync::{OnceLock, mpsc},
+    sync::{
+        OnceLock,
+        atomic::{AtomicU8, Ordering},
+        mpsc,
+    },
     time::{Duration, Instant},
 };
 
@@ -90,6 +95,8 @@ pub(crate) struct App {
     quit: bool,
     preview: bool,
     // UI interaction tests substitute this transport instead of accessing the live service.
+    care_editor: care::Editor,
+    pending_command: Option<Command>,
     query: fn(Command) -> Result<Response, String>,
 }
 impl App {
@@ -113,11 +120,14 @@ impl App {
                 fastframe_tray::Config {
                     id: APP_ID,
                     title: "BatteryBridge".into(),
-                    icon: icon_rgba,
+                    icon: tray_icon,
                     template_icon: None,
                     themed_icon: true,
                     menu: vec![
                         MenuItem::action("open", i18n::text(&locale, "trayOpen")),
+                        MenuItem::action("topup", i18n::text(&locale, "topUp")),
+                        MenuItem::action("pause", i18n::text(&locale, "pausePolicy")),
+                        MenuItem::action("resume", i18n::text(&locale, "restorePolicy")),
                         MenuItem::action("quit", i18n::text(&locale, "trayQuit")),
                     ],
                 },
@@ -143,6 +153,8 @@ impl App {
             hide: false,
             quit: false,
             preview,
+            care_editor: care::Editor::default(),
+            pending_command: None,
             query: |command| {
                 batterybridge_platform::client::query(command, batterybridge_ipc::call)
                     .map_err(|e| e.to_string())
@@ -156,6 +168,9 @@ impl App {
         self.locale = i18n::resolve(&self.language, fastframe_i18n::system_languages()).to_owned();
         if let Some(tray) = &mut self.tray {
             tray.set_label("open", i18n::text(&self.locale, "trayOpen"));
+            tray.set_label("topup", i18n::text(&self.locale, "topUp"));
+            tray.set_label("pause", i18n::text(&self.locale, "pausePolicy"));
+            tray.set_label("resume", i18n::text(&self.locale, "restorePolicy"));
             tray.set_label("quit", i18n::text(&self.locale, "trayQuit"));
         }
     }
@@ -210,8 +225,46 @@ impl App {
             self.model.updated = false;
         }
         self.model.error = None;
+        self.pending_command = Some(command.clone());
         let query = self.query;
         self.spawn(move || Reply::Protocol(query(command)));
+    }
+    fn tray_status(&mut self) {
+        if let (Some(tray), Some(snapshot)) = (&mut self.tray, &self.model.snapshot) {
+            let percent = snapshot
+                .batteries
+                .first()
+                .and_then(|b| b.percent)
+                .map_or_else(|| "?".into(), |p| p.to_string());
+            TRAY_PERCENT.store(
+                snapshot
+                    .batteries
+                    .first()
+                    .and_then(|b| b.percent)
+                    .unwrap_or(255),
+                Ordering::Relaxed,
+            );
+            tray.set_icon(tray_icon, None);
+            let state = snapshot
+                .batteries
+                .first()
+                .map(|b| i18n::battery_state(&self.locale, &b.state))
+                .unwrap_or_default();
+            tray.set_tooltip(format!("BatteryBridge · {percent}% · {state}"));
+            let writable =
+                snapshot.config.is_some() && snapshot.capabilities.charge_limit.available();
+            tray.set_enabled(
+                "topup",
+                writable
+                    && snapshot.capabilities.temporary_full_charge.available()
+                    && snapshot
+                        .config
+                        .as_ref()
+                        .is_some_and(|c| c.charge_limit.is_some()),
+            );
+            tray.set_enabled("pause", writable && !snapshot.runtime.paused);
+            tray.set_enabled("resume", writable);
+        }
     }
     fn events(&mut self, ctx: &egui::Context, visible: bool) {
         while let Ok(reply) = self.replies.try_recv() {
@@ -219,10 +272,19 @@ impl App {
             match reply {
                 Reply::Protocol(Ok(Response::Status(snapshot))) => {
                     self.model.accept(*snapshot);
+                    self.tray_status();
                     self.refreshed = Instant::now();
                 }
                 Reply::Protocol(Ok(Response::Ok)) => {
-                    self.model.edited = false;
+                    match self.pending_command.take() {
+                        Some(Command::Limit { .. }) => self.model.edited = false,
+                        Some(Command::Care { .. }) => self.model.care_edited = false,
+                        Some(Command::Reset) => {
+                            self.model.edited = false;
+                            self.model.care_edited = false;
+                        }
+                        _ => {}
+                    }
                     self.model.updated = true;
                     self.request(Command::Status);
                 }
@@ -252,20 +314,26 @@ impl App {
                 Reply::Saved(Ok(())) => self.report_saved = true,
             }
         }
-        if let Some(tray) = &self.tray {
-            for event in tray.events() {
-                match event {
-                    Event::Menu("quit") => self.quit = true,
-                    Event::Toggle | Event::Show | Event::Menu("open") => {
-                        if visible {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
-                        } else {
-                            self.wants_show = true;
-                        }
+        let events = self
+            .tray
+            .as_ref()
+            .map(|tray| tray.events())
+            .unwrap_or_default();
+        for event in events {
+            match event {
+                Event::Menu("quit") => self.quit = true,
+                Event::Toggle | Event::Show | Event::Menu("open") => {
+                    if visible {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+                    } else {
+                        self.wants_show = true;
                     }
-                    Event::Menu(_) => {}
                 }
+                Event::Menu("topup") => self.request(Command::TopUp),
+                Event::Menu("pause") => self.request(Command::Pause),
+                Event::Menu("resume") => self.request(Command::Resume),
+                Event::Menu(_) => {}
             }
         }
         if self.quit {
@@ -287,6 +355,9 @@ impl Resident for App {
     }
     fn headless_frame(&mut self, ctx: &egui::Context) -> Headless {
         self.events(ctx, false);
+        if !self.preview && !self.busy && self.refreshed.elapsed() >= REFRESH {
+            self.request(Command::Status);
+        }
         if self.quit {
             Headless::Quit
         } else if self.wants_show {
@@ -343,20 +414,31 @@ fn icon_data() -> &'static egui::IconData {
             .expect("bundled icon")
     })
 }
-fn icon_rgba(size: usize) -> Vec<u8> {
-    let icon = icon_data();
+static TRAY_PERCENT: AtomicU8 = AtomicU8::new(255);
+fn tray_icon(size: usize) -> Vec<u8> {
     let mut rgba = vec![0; size * size * 4];
-    for y in 0..size {
-        for x in 0..size {
-            let index = ((y * icon.height as usize / size) * icon.width as usize
-                + x * icon.width as usize / size)
-                * 4;
-            rgba[(y * size + x) * 4..(y * size + x + 1) * 4]
-                .copy_from_slice(&icon.rgba[index..index + 4]);
+    let percent = TRAY_PERCENT.load(Ordering::Relaxed);
+    // Draw at native pixel density while retaining a crisp battery silhouette.
+    for row in 0..size {
+        for col in 0..size {
+            let x = col * 32 / size;
+            let y = row * 32 / size;
+            let body = (3..27).contains(&x) && (8..24).contains(&y);
+            let edge = body && (!(5..25).contains(&x) || !(10..22).contains(&y));
+            let tip = (27..30).contains(&x) && (12..20).contains(&y);
+            let fill = percent <= 100
+                && (7..23).contains(&x)
+                && (12..20).contains(&y)
+                && x - 7 < usize::from(percent) * 16 / 100;
+            if edge || tip || fill {
+                rgba[(row * size + col) * 4..(row * size + col + 1) * 4]
+                    .copy_from_slice(&[216, 234, 255, 255]);
+            }
         }
     }
     rgba
 }
+
 fn run() -> Result<(), String> {
     let Some(options) = Options::parse()? else {
         return Ok(());
@@ -460,6 +542,45 @@ mod tests {
         assert!(!app.busy);
     }
 
+    #[test]
+    fn command_acknowledgements_only_discard_the_corresponding_draft() {
+        for command in [
+            Command::Care {
+                settings: Default::default(),
+                expected: Default::default(),
+            },
+            Command::Limit {
+                stop: Some(85),
+                start: None,
+            },
+            Command::Reset,
+            Command::TopUp,
+        ] {
+            let mut app = preview();
+            app.model.stop = 85;
+            app.model.edited = true;
+            app.model.care.heat_limit_c = Some(35);
+            app.model.care_edited = true;
+            app.pending_command = Some(command.clone());
+            app.sender.send(Reply::Protocol(Ok(Response::Ok))).unwrap();
+            app.events(&egui::Context::default(), false);
+            let snapshot = app.model.snapshot.clone().unwrap();
+            app.sender
+                .send(Reply::Protocol(Ok(Response::Status(Box::new(snapshot)))))
+                .unwrap();
+            app.events(&egui::Context::default(), false);
+            let resets_limit = matches!(command, Command::Limit { .. } | Command::Reset);
+            let resets_care = matches!(command, Command::Care { .. } | Command::Reset);
+            assert_eq!(app.model.edited, !resets_limit);
+            assert_eq!(app.model.care_edited, !resets_care);
+            if !resets_limit {
+                assert_eq!(app.model.stop, 85);
+            }
+            if !resets_care {
+                assert_eq!(app.model.care.heat_limit_c, Some(35));
+            }
+        }
+    }
     #[test]
     fn closing_without_a_tray_quits_and_quit_overrides_hide() {
         let mut app = preview();

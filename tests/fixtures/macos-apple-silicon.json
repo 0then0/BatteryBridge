@@ -32,7 +32,7 @@
       "start_threshold": "experimental",
       "stop_threshold": "experimental",
       "force_discharge": "experimental",
-      "adapter_disable": "unsupported",
+      "adapter_disable": "experimental",
       "temporary_full_charge": "experimental"
     },
     "battery": {

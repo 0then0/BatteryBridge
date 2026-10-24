@@ -33,6 +33,8 @@ struct Battery {
     percent: Option<u8>,
     #[serde(rename = "BatteryStatus")]
     state: Option<u16>,
+    #[serde(rename = "EstimatedRunTime")]
+    remaining: Option<u32>,
 }
 #[derive(Deserialize)]
 struct CapData {
@@ -78,7 +80,7 @@ impl BatteryMonitor for Monitor {
         let connection = WMIConnection::new().map_err(error)?;
         let ac = power::on_ac()?;
         let rows: Vec<Battery> = connection
-            .raw_query("SELECT EstimatedChargeRemaining, BatteryStatus FROM Win32_Battery")
+            .raw_query("SELECT EstimatedChargeRemaining, BatteryStatus, EstimatedRunTime FROM Win32_Battery")
             .map_err(error)?;
         Ok(rows
             .into_iter()
@@ -98,6 +100,10 @@ impl BatteryMonitor for Monitor {
                 on_ac: ac,
                 hardware_start: None,
                 hardware_stop: None,
+                telemetry: BatteryTelemetry {
+                    remaining_minutes: b.remaining.filter(|v| *v < 71_582_788),
+                    ..BatteryTelemetry::default()
+                },
             })
             .collect())
     }

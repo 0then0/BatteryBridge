@@ -129,3 +129,80 @@ pub fn watch(callback: impl Fn(PowerEvent) + Send + 'static) -> Result<Arc<Atomi
         ))
     }
 }
+
+#[link(name = "IOKit", kind = "framework")]
+unsafe extern "C" {
+    fn IOPMAssertionCreateWithName(kind: Cf, level: u32, name: Cf, assertion: *mut u32) -> i32;
+    fn IOPMAssertionRelease(assertion: u32) -> i32;
+}
+#[link(name = "CoreFoundation", kind = "framework")]
+unsafe extern "C" {
+    fn CFStringCreateWithCString(allocator: Cf, text: *const std::ffi::c_char, encoding: u32)
+    -> Cf;
+    fn CFRelease(value: Cf);
+}
+/// A process-scoped idle assertion. The OS also releases it if the service crashes.
+/// It deliberately does not change global sleep settings or prevent lid-close/manual sleep.
+#[derive(Default)]
+pub struct IdleAssertion(Option<u32>);
+impl IdleAssertion {
+    pub fn set(&mut self, enabled: bool) -> Result<()> {
+        if !enabled {
+            if let Some(id) = self.0 {
+                // SAFETY: id is owned by this guard and released at most once on success.
+                let result = unsafe { IOPMAssertionRelease(id) };
+                if result != 0 {
+                    return Err(Error::PlatformError(format!(
+                        "release idle assertion: {result}"
+                    )));
+                }
+                self.0 = None;
+            }
+        } else if self.0.is_none() {
+            // SAFETY: static C strings, default allocator, and initialized output. CF references
+            // are released after IOKit has consumed them, including error paths.
+            let result = unsafe {
+                let kind = CFStringCreateWithCString(
+                    ptr::null(),
+                    c"PreventUserIdleSystemSleep".as_ptr(),
+                    0x08000100,
+                );
+                let name = CFStringCreateWithCString(
+                    ptr::null(),
+                    c"BatteryBridge battery care".as_ptr(),
+                    0x08000100,
+                );
+                if kind.is_null() || name.is_null() {
+                    if !kind.is_null() {
+                        CFRelease(kind);
+                    }
+                    if !name.is_null() {
+                        CFRelease(name);
+                    }
+                    return Err(Error::PlatformError(
+                        "allocate idle assertion strings".into(),
+                    ));
+                }
+                let mut id = 0;
+                let result = IOPMAssertionCreateWithName(kind, 255, name, &mut id);
+                CFRelease(kind);
+                CFRelease(name);
+                if result == 0 {
+                    self.0 = Some(id);
+                }
+                result
+            };
+            if result != 0 {
+                return Err(Error::PlatformError(format!(
+                    "create idle assertion: {result}"
+                )));
+            }
+        }
+        Ok(())
+    }
+}
+impl Drop for IdleAssertion {
+    fn drop(&mut self) {
+        let _ = self.set(false);
+    }
+}

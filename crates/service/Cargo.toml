@@ -9,6 +9,7 @@ readme.workspace = true
 description = "Background service that persists and enforces BatteryBridge charging policies."
 
 [dependencies]
+chrono.workspace = true
 batterybridge-protocol.workspace = true
 batterybridge-core.workspace = true
 batterybridge-platform.workspace = true

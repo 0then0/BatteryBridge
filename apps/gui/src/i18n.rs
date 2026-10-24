@@ -78,7 +78,8 @@ pub fn reason(locale: &str, original: &str) -> String {
             "reasonSmc"
         }
         "daemon temporarily releases gate until full" => "reasonSmcTopUp",
-        "SMC CH0I; daemon restores adapter at target" => "reasonSmcDischarge",
+        "SMC CH0I; daemon restores adapter at target"
+        | "SMC adapter gate; daemon restores adapter at target" => "reasonSmcDischarge",
         "kernel end threshold; writes require device permissions" | "kernel end threshold" => {
             "reasonKernelEnd"
         }
@@ -88,6 +89,12 @@ pub fn reason(locale: &str, original: &str) -> String {
         "Lenovo WMI conservation mode, fixed 80%; device write compatibility is unverified" => {
             "reasonLenovo"
         }
+        "scoped idle-sleep assertion; lid-close and manual sleep remain possible" => {
+            "preventSleepHelp"
+        }
+        "battery temperature sensor and SMC charging gate" => "heatHelp",
+        "MagSafe ACLC LED override; requires compatible connected adapter" => "ledMode",
+        "not exposed by Intel BCLM" | "not exposed by this backend" => "reasonGeneric",
         _ => return original.into(),
     };
     text(locale, key)

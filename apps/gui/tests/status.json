@@ -7,7 +7,16 @@
       "on_ac": true,
       "health_percent": null,
       "hardware_start": null,
-      "hardware_stop": null
+      "hardware_stop": null,
+      "telemetry": {
+        "temperature_deci_c": 312,
+        "voltage_mv": 12500,
+        "current_ma": 1500,
+        "power_mw": 18750,
+        "cycle_count": 123,
+        "raw_percent": 84,
+        "remaining_minutes": 45
+      }
     }
   ],
   "device": {
@@ -32,21 +41,37 @@
       "reason": "SMC binary gate; daemon enforces hysteresis while awake; firmware may deny writes"
     },
     "force_discharge": {
-      "state": "unsupported",
-      "reason": "no compatible charge-control interface detected"
+      "state": "experimental",
+      "reason": "Preview capability"
     },
     "adapter_disable": {
-      "state": "unsupported",
-      "reason": "no compatible charge-control interface detected"
+      "state": "experimental",
+      "reason": "Preview capability"
     },
     "temporary_full_charge": {
       "state": "experimental",
       "reason": "daemon temporarily releases gate until full"
     },
-    "allowed_limits": null
+    "allowed_limits": null,
+    "manual_charging": {
+      "state": "experimental",
+      "reason": "Preview capability"
+    },
+    "heat_protection": {
+      "state": "experimental",
+      "reason": "Preview capability"
+    },
+    "magsafe_led": {
+      "state": "experimental",
+      "reason": "Preview capability"
+    },
+    "sleep_prevention": {
+      "state": "experimental",
+      "reason": "Preview capability"
+    }
   },
   "config": {
-    "version": 1,
+    "version": 2,
     "charge_limit": 80,
     "start_threshold": {
       "enabled": false,

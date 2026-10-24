@@ -27,11 +27,11 @@ Monitoring is available independently of controller activation. A laptop can rep
 1. CLI or GUI validates a typed command.
 2. The client sends the request over a Unix socket or Windows named pipe.
 3. The service validates protocol version and values, then executes the command on its policy thread.
-4. The selected controller performs the hardware operation, and the service persists a changed limit before responding.
+4. The selected controller performs the hardware operation, and the service persists changed limits or care preferences before responding.
 
 Status and capability reads use local read-only discovery when the service is unavailable. `probe` always runs locally. Configuration reads and mutations require the service. Local discovery does not create a writable controller for the client.
 
-The native desktop app uses the same typed Rust client boundary as the CLI. IPC and export/uninstall work run outside the UI thread. Only one UI operation is in flight at a time; status refreshes preserve unsaved edits. Hidden windows do not poll the service. The independent daemon continues enforcing policy.
+The native desktop app uses the same typed Rust client boundary as the CLI. IPC and export/uninstall work run outside the UI thread. Only one UI operation is in flight at a time; status refreshes preserve unsaved edits. The tray continues refreshing status every 30 seconds when the window is hidden. The independent daemon continues enforcing policy.
 
 The app directly uses fastframe-shell (tray/window lifecycle), fastframe-tray, fastframe-fonts and fastframe-i18n (system language preferences). macOS additionally uses fastframe-dock to retain menu-bar application behavior. eframe supplies system theme following and user preference storage. Existing JSON translations remain the single catalog format for the app and macOS Installer; no gettext conversion or separate UI command protocol is required.
 
@@ -39,7 +39,7 @@ The app directly uses fastframe-shell (tray/window lifecycle), fastframe-tray, f
 
 The service loads its saved TOML policy at startup, discovers the device and creates a controller when capabilities allow it. It reconciles the desired policy with hardware every 30 seconds while awake. Hardware writes and incoming commands are serialized.
 
-The policy tracks persistent limits separately from temporary top-up, discharge and hysteresis state. Service restart clears temporary modes. On macOS, IOKit power notifications coordinate adapter release before sleep and policy reconciliation after wake. Linux and Windows use periodic reconciliation after resume.
+The policy tracks persistent limits separately from temporary top-up, target charge, hold, pause, discharge, calibration and hysteresis state. The core calendar scheduler coalesces missed occurrences; the service durably advances due entries before executing them, so restarting cannot replay a claimed calibration. Service restart clears temporary modes. On macOS, IOKit power notifications coordinate adapter release before sleep and policy reconciliation after wake. Linux and Windows use periodic reconciliation after resume.
 
 BatteryBridge selects the first present battery for control. Other detected batteries remain visible in status. The Windows Lenovo controller requires exactly one battery because its interface does not provide per-pack selection.
 

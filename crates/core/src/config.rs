@@ -2,11 +2,12 @@ use crate::*;
 use std::{fs, io::Write, path::Path};
 
 pub fn validate(config: &Config) -> Result<()> {
-    if config.version != 1 {
+    if config.version != 2 {
         return Err(Error::ConfigurationError(
             "unsupported configuration version".into(),
         ));
     }
+    config.care.validate()?;
     Command::Limit {
         stop: config.charge_limit,
         start: config
@@ -34,6 +35,11 @@ pub fn decode(input: &str) -> Result<Config> {
             })
             .map_err(|e| Error::ConfigurationError(e.to_string()))?,
         );
+    }
+    if value.get("version").and_then(toml::Value::as_integer) == Some(1)
+        && let Some(table) = value.as_table_mut()
+    {
+        table.insert("version".into(), 2.into());
     }
     let c: Config = value
         .try_into()
@@ -88,7 +94,16 @@ mod tests {
     use super::*;
     #[test]
     fn migrates_and_rejects_bad_policy() {
-        assert_eq!(decode("charge_limit = 80").unwrap().version, 1);
+        for source in [
+            "charge_limit = 80",
+            "version = 0\ncharge_limit = 80",
+            "version = 1\ncharge_limit = 80\n[start_threshold]\nenabled = true\nvalue = 75",
+        ] {
+            let config = decode(source).unwrap();
+            assert_eq!(config.version, 2);
+            assert_eq!(config.charge_limit, Some(80));
+            assert_eq!(config.care, CareSettings::default());
+        }
         assert!(decode("version = 99\ncharge_limit = 80").is_err());
         assert!(decode("charge_limit = 0").is_err());
         assert!(
