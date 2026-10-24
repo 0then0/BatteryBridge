@@ -2,10 +2,12 @@
 
 [Documentation index](README.md)
 
-The published 0.2.0 installers use the previous GUI. The source tree prepares
-0.3.0 with egui/eframe and preserves the installation paths and service policy.
-Instructions below cover the native installers; the 0.2.0 Linux GUI additionally
-requires WebKitGTK 4.1 and its Windows installer may install WebView2.
+Version 0.3.0 uses egui/eframe and preserves the installation paths and saved
+charging policy. The installers include the GUI, CLI and background service.
+Upgrade all three together: the IPC protocol is incompatible with 0.2.0.
+Back up configuration before upgrading; the migrated version 2 format cannot be
+read by older binaries. See [configuration recovery](configuration.md#persistence-and-recovery)
+before downgrading.
 
 When upgrading from 0.2.0 to the native GUI, select your preferred language again
 if it differs from the system language. The old WebView preference is not imported;

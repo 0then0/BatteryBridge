@@ -11,7 +11,7 @@ BatteryBridge is a battery charge-control tool for Linux, macOS and Windows. It 
 
 Available controls depend on your laptop's kernel driver, firmware and vendor interfaces. BatteryBridge detects these capabilities and explains which features are available on your device.
 
-**Stable release:** 0.2.0. The source tree prepares 0.3.0 with a native Rust GUI; published 0.2.0 packages still use the earlier Tauri interface. CI tests and builds the project on all three operating systems. Apple SMC and Lenovo WMI charge control remain experimental and require device-level validation; see [hardware compatibility](docs/hardware.md) for the current support boundaries.
+**Stable release:** 0.3.0, with a native Rust GUI and extended battery-care controls. CI tests and builds the project on all three operating systems. Apple SMC and Lenovo WMI charge control remain experimental and require device-level validation; see [hardware compatibility](docs/hardware.md) for the current support boundaries.
 
 ## Features
 
@@ -28,26 +28,26 @@ Available controls depend on your laptop's kernel driver, firmware and vendor in
 - Use the CLI independently of the tray app.
 - Use the desktop app in English, Russian, Spanish, German, French, Japanese or Brazilian Portuguese, with system light/dark appearance.
 
-The extended battery-care controls are part of the unreleased 0.3.0 source. See [battery care and schedules](docs/battery-care.md) for hardware requirements, cancellation behavior and differences from other charge managers.
+See [battery care and schedules](docs/battery-care.md) for hardware requirements, cancellation behavior and differences from other charge managers.
 
 ## Downloads
 
 <!-- downloads:start -->
 
-Direct downloads for stable release [v0.2.0](https://github.com/0then0/BatteryBridge/releases/tag/v0.2.0):
+Direct downloads for stable release [v0.3.0](https://github.com/0then0/BatteryBridge/releases/tag/v0.3.0):
 
 | Platform | Architecture | Download | Installation |
 | --- | --- | --- | --- |
-| macOS 11+ | Intel + Apple Silicon (universal) | [Installer (.pkg)](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/BatteryBridge-macos-universal.pkg) | App and background service |
-| Windows 10/11 | x86_64 | [Installer (.exe)](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/BatteryBridge-windows-x86_64-setup.exe) | App and SYSTEM background task |
-| Ubuntu 24.04+ / Debian 13+ | x86_64 | [Debian package (.deb)](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/BatteryBridge-linux-x86_64.deb) | App and systemd service; requires the `sudo` group |
-| Fedora 41+ / compatible RPM systems | x86_64 | [RPM package (.rpm)](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/BatteryBridge-linux-x86_64.rpm) | App and systemd service; requires the `wheel` group |
+| macOS 11+ | Intel + Apple Silicon (universal) | [Installer (.pkg)](https://github.com/0then0/BatteryBridge/releases/download/v0.3.0/BatteryBridge-macos-universal.pkg) | App and background service |
+| Windows 10/11 | x86_64 | [Installer (.exe)](https://github.com/0then0/BatteryBridge/releases/download/v0.3.0/BatteryBridge-windows-x86_64-setup.exe) | App and SYSTEM background task |
+| Ubuntu 24.04+ / Debian 13+ | x86_64 | [Debian package (.deb)](https://github.com/0then0/BatteryBridge/releases/download/v0.3.0/BatteryBridge-linux-x86_64.deb) | App and systemd service; requires the `sudo` group |
+| Fedora 41+ / compatible RPM systems | x86_64 | [RPM package (.rpm)](https://github.com/0then0/BatteryBridge/releases/download/v0.3.0/BatteryBridge-linux-x86_64.rpm) | App and systemd service; requires the `wheel` group |
 
-Developer archives: [macOS universal](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/batterybridge-macos-universal.tar.gz), [Windows](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/batterybridge-windows-x86_64.zip), [Linux](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/batterybridge-linux-x86_64.tar.gz).
+Developer archives: [macOS universal](https://github.com/0then0/BatteryBridge/releases/download/v0.3.0/batterybridge-macos-universal.tar.gz), [Windows](https://github.com/0then0/BatteryBridge/releases/download/v0.3.0/batterybridge-windows-x86_64.zip), [Linux](https://github.com/0then0/BatteryBridge/releases/download/v0.3.0/batterybridge-linux-x86_64.tar.gz).
 
-[SHA-256 checksums](https://github.com/0then0/BatteryBridge/releases/download/v0.2.0/SHA256SUMS.txt) · [Installation instructions](docs/install.md)
+[SHA-256 checksums](https://github.com/0then0/BatteryBridge/releases/download/v0.3.0/SHA256SUMS.txt) · [Installation instructions](docs/install.md)
 
-The installers include the charging service; no separate Terminal or PowerShell setup is needed. macOS and Windows installers are unsigned. Linux packages require a running systemd system and compatible WebKitGTK 4.1 libraries; they are not universal Linux binaries. Hardware charge control remains device-dependent and experimental on macOS and Lenovo WMI.
+The installers include the charging service; no separate Terminal or PowerShell setup is needed. macOS and Windows installers are unsigned. Linux packages require a running systemd system and native OpenGL/EGL graphics libraries; they are not universal Linux binaries. Hardware charge control remains device-dependent and experimental on macOS and Lenovo WMI.
 
 <!-- downloads:end -->
 

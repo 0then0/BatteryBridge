@@ -2,7 +2,7 @@
 
 [Documentation index](README.md)
 
-These controls are available in the unreleased 0.3.0 source. Stable 0.2.0 packages do not include them. The service reports what your hardware can perform; monitoring values that the OS does not expose remain unavailable.
+These controls are available starting with 0.3.0. Upgrade the app, CLI and service together; 0.2.0 packages do not include them. The service reports what your hardware can perform; monitoring values that the OS does not expose remain unavailable.
 
 ## Saved policy and temporary operations
 

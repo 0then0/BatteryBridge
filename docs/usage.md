@@ -54,7 +54,7 @@ This advanced command requires a backend with force-discharge support. It stops 
 
 ## Advanced care and automation
 
-The source version 0.3.0 adds target charging, hold/pause/resume, automatic discharge, temperature protection, calibration and calendar schedules. Open **Temporary operations** or **Battery care** in the desktop app. Available controls depend on detected hardware. See [battery care and schedules](battery-care.md) for exact behavior and CLI commands.
+Version 0.3.0 adds target charging, hold/pause/resume, automatic discharge, temperature protection, calibration and calendar schedules. Open **Temporary operations** or **Battery care** in the desktop app. Available controls depend on detected hardware. See [battery care and schedules](battery-care.md) for exact behavior and CLI commands.
 
 ## Use the tray app
 
