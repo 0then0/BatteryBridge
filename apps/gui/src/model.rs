@@ -25,6 +25,10 @@ impl Default for Model {
     }
 }
 impl Model {
+    pub fn mark_edited(&mut self) {
+        self.edited = true;
+        self.error = None;
+    }
     pub fn read_only(&self) -> bool {
         self.snapshot.as_ref().is_none_or(|s| s.config.is_none())
     }

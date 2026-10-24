@@ -89,6 +89,8 @@ pub(crate) struct App {
     hide: bool,
     quit: bool,
     preview: bool,
+    // UI interaction tests substitute this transport instead of accessing the live service.
+    query: fn(Command) -> Result<Response, String>,
 }
 impl App {
     fn new(waker: Waker, options: Options) -> Result<Self, String> {
@@ -141,6 +143,10 @@ impl App {
             hide: false,
             quit: false,
             preview,
+            query: |command| {
+                batterybridge_platform::client::query(command, batterybridge_ipc::call)
+                    .map_err(|e| e.to_string())
+            },
         })
     }
     fn text(&self, key: &str) -> String {
@@ -204,12 +210,8 @@ impl App {
             self.model.updated = false;
         }
         self.model.error = None;
-        self.spawn(move || {
-            Reply::Protocol(
-                batterybridge_platform::client::query(command, batterybridge_ipc::call)
-                    .map_err(|e| e.to_string()),
-            )
-        });
+        let query = self.query;
+        self.spawn(move || Reply::Protocol(query(command)));
     }
     fn events(&mut self, ctx: &egui::Context, visible: bool) {
         while let Ok(reply) = self.replies.try_recv() {

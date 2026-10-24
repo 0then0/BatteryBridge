@@ -450,8 +450,7 @@ impl App {
         eyebrow(ui, state);
         ui.label(self.text("firstBattery"));
         ui.add_space(8.0);
-        let enabled =
-            !self.busy && !self.preview && !self.model.read_only() && self.model.error.is_none();
+        let enabled = !self.busy && !self.preview && !self.model.read_only();
         ui.add_enabled_ui(enabled, |ui| {
             let label = ui.label(self.text("stopAt"));
             if let Some(limits) = &caps.allowed_limits {
@@ -463,7 +462,7 @@ impl App {
                                 .selectable_value(&mut self.model.stop, *value, format!("{value}%"))
                                 .changed()
                             {
-                                self.model.edited = true;
+                                self.model.mark_edited();
                             }
                         }
                     })
@@ -478,7 +477,7 @@ impl App {
                 .labelled_by(label.id)
                 .changed()
             {
-                self.model.edited = true;
+                self.model.mark_edited();
             }
             if caps.start_threshold.available() {
                 if ui
@@ -488,7 +487,7 @@ impl App {
                     )
                     .changed()
                 {
-                    self.model.edited = true;
+                    self.model.mark_edited();
                 }
                 if self.model.use_start {
                     let label = ui.label(self.text("resumeAt"));
@@ -501,7 +500,7 @@ impl App {
                         .labelled_by(label.id)
                         .changed()
                     {
-                        self.model.edited = true;
+                        self.model.mark_edited();
                     }
                 }
             }
@@ -596,6 +595,201 @@ mod tests {
     use crate::{Options, model::tests::fixture};
     use egui::{RawInput, Rect, ThemePreference};
     use fastframe_shell::Waker;
+
+    fn policy_frame(
+        ctx: &egui::Context,
+        app: &mut App,
+        events: Vec<egui::Event>,
+    ) -> egui::accesskit::TreeUpdate {
+        let mut output = ctx.run_ui(
+            RawInput {
+                screen_rect: Some(Rect::from_min_size(egui::Pos2::ZERO, vec2(420.0, 1000.0))),
+                events,
+                ..Default::default()
+            },
+            |root| {
+                egui::CentralPanel::default().show(root, |ui| app.policy(ui));
+            },
+        );
+        output.textures_delta.clear();
+        output.platform_output.accesskit_update.take().unwrap()
+    }
+
+    fn action(
+        node: egui::accesskit::NodeId,
+        action: egui::accesskit::Action,
+        data: Option<egui::accesskit::ActionData>,
+    ) -> Vec<egui::Event> {
+        vec![egui::Event::AccessKitActionRequest(
+            egui::accesskit::ActionRequest {
+                action,
+                target_tree: egui::accesskit::TreeId::ROOT,
+                target_node: node,
+                data,
+            },
+        )]
+    }
+
+    fn policy_app() -> App {
+        App::new(
+            Waker::default(),
+            Options {
+                preview: Some(
+                    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/status.json"),
+                ),
+                language: Some("en".into()),
+            },
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn invalid_thresholds_can_be_corrected_and_applied_without_refresh() {
+        use batterybridge_protocol::Response;
+        use egui::accesskit::{Action, ActionData, Role};
+        use std::sync::Mutex;
+        static SENT: Mutex<Vec<Command>> = Mutex::new(Vec::new());
+        fn query(command: Command) -> Result<Response, String> {
+            let status = matches!(command, Command::Status);
+            SENT.lock().unwrap().push(command);
+            if status {
+                let mut snapshot = fixture();
+                let config = snapshot.config.as_mut().unwrap();
+                config.charge_limit = Some(70);
+                config.start_threshold.enabled = true;
+                config.start_threshold.value = 60;
+                Ok(Response::Status(Box::new(snapshot)))
+            } else {
+                Ok(Response::Ok)
+            }
+        }
+        SENT.lock().unwrap().clear();
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let mut app = policy_app();
+        app.preview = false;
+        app.query = query;
+        app.model.stop = 70;
+        app.model.start = 75;
+        app.model.use_start = true;
+        let tree = policy_frame(&ctx, &mut app, vec![]);
+        let apply = tree
+            .nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some("Apply limit"))
+            .unwrap()
+            .0;
+        policy_frame(&ctx, &mut app, action(apply, Action::Click, None));
+        assert!(
+            app.model
+                .error
+                .as_deref()
+                .is_some_and(|error| error.contains("start must be below stop"))
+        );
+        assert!(!app.busy);
+        assert!(
+            SENT.lock().unwrap().is_empty(),
+            "invalid input must not reach IPC"
+        );
+
+        let tree = policy_frame(&ctx, &mut app, vec![]);
+        let (start, node) = tree
+            .nodes
+            .iter()
+            .find(|(_, node)| node.role() == Role::SpinButton && node.numeric_value() == Some(75.0))
+            .unwrap();
+        assert!(
+            !node.is_disabled(),
+            "validation errors must leave the draft editable"
+        );
+        policy_frame(
+            &ctx,
+            &mut app,
+            action(
+                *start,
+                Action::SetValue,
+                Some(ActionData::NumericValue(60.0)),
+            ),
+        );
+        assert_eq!(app.model.start, 60);
+        assert!(app.model.error.is_none());
+        assert!(app.model.edited);
+
+        let tree = policy_frame(&ctx, &mut app, vec![]);
+        let apply = tree
+            .nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some("Apply limit"))
+            .unwrap()
+            .0;
+        policy_frame(&ctx, &mut app, action(apply, Action::Click, None));
+        while app.busy {
+            let reply = app
+                .replies
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap();
+            // Let the normal event handler process the completed worker reply.
+            app.sender.send(reply).unwrap();
+            app.events(&ctx, true);
+        }
+        assert!(!app.busy);
+        assert!(app.model.error.is_none());
+        assert!(app.model.updated);
+        assert!(!app.model.edited);
+        assert_eq!(
+            app.model
+                .snapshot
+                .as_ref()
+                .unwrap()
+                .config
+                .as_ref()
+                .unwrap()
+                .charge_limit,
+            Some(70)
+        );
+        assert!(matches!(
+            SENT.lock().unwrap().as_slice(),
+            [
+                Command::Limit {
+                    stop: Some(70),
+                    start: Some(60)
+                },
+                Command::Status
+            ]
+        ));
+    }
+
+    #[test]
+    fn an_error_does_not_bypass_busy_read_only_or_preview_restrictions() {
+        use egui::accesskit::Role;
+        for mode in ["busy", "read-only", "preview"] {
+            let ctx = egui::Context::default();
+            ctx.enable_accesskit();
+            let mut app = policy_app();
+            app.preview = mode == "preview";
+            app.busy = mode == "busy";
+            if mode == "read-only" {
+                app.model.snapshot.as_mut().unwrap().config = None;
+            }
+            app.model.error = Some("previous request failed".into());
+            let tree = policy_frame(&ctx, &mut app, vec![]);
+            let controls: Vec<_> = tree
+                .nodes
+                .iter()
+                .filter(|(_, node)| {
+                    matches!(
+                        node.role(),
+                        Role::SpinButton | Role::CheckBox | Role::Button
+                    )
+                })
+                .collect();
+            assert!(!controls.is_empty());
+            assert!(
+                controls.iter().all(|(_, node)| node.is_disabled()),
+                "{mode}"
+            );
+        }
+    }
 
     #[test]
     fn catalogs_render_at_supported_widths_without_horizontal_overflow() {
